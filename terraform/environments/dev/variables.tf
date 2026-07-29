@@ -115,3 +115,11 @@ variable "policy_arns" {
   type = list(string)
 
 }
+
+####################################################
+# SES Email Identities
+####################################################
+variable "ses_emails" {
+  description = "List of verified SES email identities"
+  type        = list(string)
+}

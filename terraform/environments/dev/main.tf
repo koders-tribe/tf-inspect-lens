@@ -27,10 +27,20 @@ module "iam" {
   iam_group_name = var.iam_group_name
 
   policy_arns = var.policy_arns
-  
+
   tags = {
     Project     = var.project_name
     Environment = var.environment
   }
 
+}
+
+##################################################
+# SES Modules
+##################################################
+
+module "ses" {
+  source = "../../modules/ses"
+
+  emails = var.ses_emails
 }

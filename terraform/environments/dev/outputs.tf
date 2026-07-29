@@ -63,3 +63,27 @@ output "iam_group_arn" {
   value = module.iam.iam_group_arn
 
 }
+
+###############################################################################
+# SES Email Identity
+###############################################################################
+
+output "ses_email_identity" {
+
+  description = "SES verified email identities."
+
+  value = module.ses.email_identities
+
+}
+
+###############################################################################
+# SES Email Identity ARNs
+###############################################################################
+
+output "ses_email_identity_arns" {
+
+  description = "ARN of the SES email identity."
+
+  value = module.ses.email_identity_arns
+
+}
