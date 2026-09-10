@@ -1,25 +1,22 @@
-###############################################################################
-# Existing S3 Bucket Name
-###############################################################################
-
 variable "bucket_name" {
-
-  description = "Name of the existing S3 bucket to be managed by Terraform."
-
-  type = string
-
+  description = "Name of the S3 bucket. If the bucket already exists, import it before the first apply."
+  type        = string
 }
 
-###############################################################################
-# Common Resource Tags
-###############################################################################
-
 variable "tags" {
-
   description = "Common tags applied to AWS resources."
+  type        = map(string)
+  default     = {}
+}
 
-  type = map(string)
+variable "cors_allowed_origins" {
+  description = "Browser origins allowed to PUT/GET via presigned URLs. Empty list skips the CORS resource."
+  type        = list(string)
+  default     = []
+}
 
-  default = {}
-
+variable "abort_incomplete_multipart_days" {
+  description = "Abort incomplete multipart uploads after this many days."
+  type        = number
+  default     = 7
 }
