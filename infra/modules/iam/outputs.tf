@@ -1,43 +1,24 @@
-###############################################################################
-# IAM User Name
-###############################################################################
-
 output "iam_user_name" {
-
-  description = "IAM User Name."
-
-  value = aws_iam_user.this.name
+  description = "IAM user name."
+  value       = aws_iam_user.this.name
 }
-
-###############################################################################
-# IAM User ARN
-###############################################################################
 
 output "iam_user_arn" {
-
-  description = "IAM User ARN."
-
-  value = aws_iam_user.this.arn
+  description = "IAM user ARN."
+  value       = aws_iam_user.this.arn
 }
-
-###############################################################################
-# IAM Group Name
-###############################################################################
 
 output "iam_group_name" {
-
-  description = "IAM Group Name."
-
-  value = aws_iam_group.this.name
+  description = "IAM group name."
+  value       = aws_iam_group.this.name
 }
 
-###############################################################################
-# IAM Group ARN
-###############################################################################
-
 output "iam_group_arn" {
+  description = "IAM group ARN."
+  value       = aws_iam_group.this.arn
+}
 
-  description = "IAM Group ARN."
-
-  value = aws_iam_group.this.arn
+output "app_policy_arn" {
+  description = "Least-privilege app policy ARN, if created."
+  value       = try(aws_iam_policy.app[0].arn, null)
 }
