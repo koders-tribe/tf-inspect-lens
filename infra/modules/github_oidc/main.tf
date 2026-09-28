@@ -24,14 +24,13 @@ resource "aws_iam_openid_connect_provider" "github" {
 
 locals {
   oidc_provider_arn = var.create_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
-  repo_sub          = "repo:${var.github_org}/${var.github_repo}:*"
-  deploy_subs = [
-    for env in var.deploy_environments :
-    "repo:${var.github_org}/${var.github_repo}:environment:${env}"
+  repo_subs = [
+    for repo in var.github_repos :
+    "repo:${var.github_org}/${repo}:*"
   ]
 }
 
-data "aws_iam_policy_document" "build_trust" {
+data "aws_iam_policy_document" "github_actions_trust" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -50,109 +49,63 @@ data "aws_iam_policy_document" "build_trust" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = [local.repo_sub]
+      values   = local.repo_subs
     }
   }
 }
 
-data "aws_iam_policy_document" "deploy_trust" {
+
+resource "aws_iam_role" "github_actions" {
+  name               = var.role_name
+  description        = "GitHub Actions OIDC role for Inspect Lens backend CI/CD"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_trust.json
+
+  tags = merge(var.tags, {
+    Name = var.role_name
+  })
+}
+
+data "aws_iam_policy_document" "github_actions" {
   statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-
-    principals {
-      type        = "Federated"
-      identifiers = [local.oidc_provider_arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-
-    condition {
-      test     = "StringLike"
-      variable = "token.actions.githubusercontent.com:sub"
-      values   = local.deploy_subs
-    }
-  }
-}
-
-resource "aws_iam_role" "build" {
-  name               = "${var.name_prefix}-github-build"
-  assume_role_policy = data.aws_iam_policy_document.build_trust.json
-  tags               = merge(var.tags, { Name = "${var.name_prefix}-github-build" })
-}
-
-resource "aws_iam_role" "deploy" {
-  name               = "${var.name_prefix}-github-deploy"
-  assume_role_policy = data.aws_iam_policy_document.deploy_trust.json
-  tags               = merge(var.tags, { Name = "${var.name_prefix}-github-deploy" })
-}
-
-data "aws_iam_policy_document" "build" {
-  statement {
-    sid       = "EcrAuth"
+    sid       = "ECRAuth"
     effect    = "Allow"
     actions   = ["ecr:GetAuthorizationToken"]
     resources = ["*"]
   }
 
   statement {
-    sid    = "EcrPush"
+    sid    = "ECRRepositoryPush"
     effect = "Allow"
+
     actions = [
       "ecr:BatchCheckLayerAvailability",
-      "ecr:GetDownloadUrlForLayer",
-      "ecr:BatchGetImage",
-      "ecr:PutImage",
-      "ecr:InitiateLayerUpload",
-      "ecr:UploadLayerPart",
       "ecr:CompleteLayerUpload",
-      "ecr:DescribeRepositories",
+      "ecr:InitiateLayerUpload",
+      "ecr:PutImage",
+      "ecr:UploadLayerPart",
+      "ecr:BatchGetImage",
       "ecr:DescribeImages",
-      "ecr:ListImages",
     ]
+
     resources = var.ecr_repository_arns
   }
-}
 
-resource "aws_iam_role_policy" "build" {
-  name   = "ecr-push"
-  role   = aws_iam_role.build.id
-  policy = data.aws_iam_policy_document.build.json
-}
-
-data "aws_iam_policy_document" "deploy" {
   statement {
-    sid    = "SsmRun"
+    sid    = "SSMDeploy"
     effect = "Allow"
+
     actions = [
       "ssm:SendCommand",
-      "ssm:ListCommands",
-      "ssm:ListCommandInvocations",
       "ssm:GetCommandInvocation",
+      "ssm:ListCommandInvocations",
     ]
-    resources = concat(
-      [
-        "arn:aws:ssm:${data.aws_region.current.name}::document/AWS-RunShellScript",
-        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:*",
-      ],
-      length(var.ec2_instance_arns) > 0 ? var.ec2_instance_arns : ["arn:aws:ec2:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:instance/*"]
-    )
-  }
 
-  statement {
-    sid       = "Ec2Describe"
-    effect    = "Allow"
-    actions   = ["ec2:DescribeInstances", "ec2:DescribeTags"]
     resources = ["*"]
   }
 }
 
-resource "aws_iam_role_policy" "deploy" {
-  name   = "ssm-deploy"
-  role   = aws_iam_role.deploy.id
-  policy = data.aws_iam_policy_document.deploy.json
+resource "aws_iam_role_policy" "github_actions" {
+  name   = "InspectLensGitHubActionsCDPolicy"
+  role   = aws_iam_role.github_actions.id
+  policy = data.aws_iam_policy_document.github_actions.json
 }

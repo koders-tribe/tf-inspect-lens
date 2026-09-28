@@ -1,6 +1,9 @@
-variable "repository_names" {
-  description = "ECR repository names (not URIs). Inspect Lens CD needs inspect-lens-be and inspect-image-analyzer."
-  type        = list(string)
+variable "repositories" {
+  description = "ECR repository configuration for Inspect Lens."
+  type = map(object({
+    image_tag_mutability = string
+    scan_on_push         = bool
+  }))
 }
 
 variable "keep_image_count" {

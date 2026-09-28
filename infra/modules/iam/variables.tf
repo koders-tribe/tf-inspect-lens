@@ -15,7 +15,7 @@ variable "policy_arns" {
 }
 
 variable "s3_bucket_arn" {
-  description = "ARN of the app S3 bucket. Used to scope Put/Get/Delete to orgs/*."
+  description = "ARN of the app S3 bucket. Used to scope object access to findings/*, inspection-reports/*, and quotation-agreements/*."
   type        = string
   default     = ""
 }

@@ -8,10 +8,13 @@ variable "github_org" {
   default = "koders-tribe"
 }
 
-variable "github_repo" {
-  description = "Application repository that assumes these roles (inspect-lens-be)."
-  type        = string
-  default     = "inspect-lens-be"
+variable "github_repos" {
+  description = "GitHub repositories allowed to assume the Inspect Lens GitHub Actions IAM role."
+  type        = list(string)
+  default = [
+    "inspect-lens-be",
+    "inspect-image-analyzer"
+  ]
 }
 
 variable "create_oidc_provider" {
@@ -21,23 +24,17 @@ variable "create_oidc_provider" {
 }
 
 variable "ecr_repository_arns" {
-  description = "ECR repository ARNs the build role may push to."
+  description = "ECR repository ARNs the GitHub Actions role may push to."
   type        = list(string)
-}
-
-variable "deploy_environments" {
-  description = "GitHub Environment names allowed to assume the deploy role."
-  type        = list(string)
-  default     = ["staging", "production"]
-}
-
-variable "ec2_instance_arns" {
-  description = "Optional EC2 instance ARNs to scope ssm:SendCommand. Empty allows tagged instances via a wildcard (tighten later)."
-  type        = list(string)
-  default     = []
 }
 
 variable "tags" {
   type    = map(string)
   default = {}
+}
+
+variable "role_name" {
+  description = "Existing GitHub Actions IAM role name."
+  type        = string
+  default     = "GitHubActionsInspectLensCDRole"
 }

@@ -11,33 +11,9 @@ variable "subnet_id" {
   type        = string
 }
 
-variable "app_security_group_id" {
-  type = string
-}
-
-variable "alb_security_group_id" {
-  type = string
-}
-
-variable "ecr_repository_arns" {
-  description = "ECR repos the instance may pull."
-  type        = list(string)
-}
-
 variable "instance_type" {
   type    = string
   default = "t3.small"
-}
-
-variable "root_volume_gb" {
-  type    = number
-  default = 40
-}
-
-variable "uploads_volume_gb" {
-  description = "EBS volume mounted for local profile/signature uploads (FileUploadService)."
-  type        = number
-  default     = 20
 }
 
 variable "deploy_path" {
@@ -57,6 +33,11 @@ variable "enable_alb" {
   default = false
 }
 
+variable "alb_security_group_id" {
+  type    = string
+  default = ""
+}
+
 variable "acm_certificate_arn" {
   description = "If set with enable_alb, ALB listens on 443. Otherwise HTTP 80."
   type        = string
@@ -69,13 +50,27 @@ variable "public_subnet_ids" {
   default     = []
 }
 
-variable "allowed_ssh_cidrs" {
-  description = "Leave empty (recommended). CD uses SSM, not SSH."
-  type        = list(string)
-  default     = []
-}
-
 variable "tags" {
   type    = map(string)
   default = {}
+}
+
+variable "existing_ami_id" {
+  description = "AMI ID of the existing EC2 instance being adopted."
+  type        = string
+}
+
+variable "existing_instance_profile_name" {
+  description = "Existing EC2 IAM instance profile."
+  type        = string
+}
+
+variable "existing_security_group_ids" {
+  description = "Existing security groups attached to the EC2 instance."
+  type        = list(string)
+}
+
+variable "existing_instance_name" {
+  description = "Existing EC2 Name tag."
+  type        = string
 }

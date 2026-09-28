@@ -139,9 +139,29 @@ variable "ses_route53_zone_id" {
 # Network / RDS / compute
 ###############################################################################
 
-variable "vpc_cidr" {
-  type    = string
-  default = "10.20.0.0/16"
+variable "existing_vpc_id" {
+  description = "Existing VPC to reuse for Inspect Lens."
+  type        = string
+}
+
+variable "existing_public_subnet_ids" {
+  description = "Existing public subnets to reuse."
+  type        = list(string)
+}
+
+variable "existing_private_subnet_ids" {
+  description = "Existing private subnets to reuse."
+  type        = list(string)
+}
+
+variable "existing_app_security_group_id" {
+  description = "Existing EC2/app security group."
+  type        = string
+}
+
+variable "existing_rds_security_group_id" {
+  description = "Existing RDS security group."
+  type        = string
 }
 
 variable "db_instance_class" {
@@ -151,17 +171,17 @@ variable "db_instance_class" {
 
 variable "db_name" {
   type    = string
-  default = "inspect_lens"
+  default = null
 }
 
 variable "db_username" {
   type    = string
-  default = "inspect_lens"
+  default = "postgres"
 }
 
 variable "ec2_instance_type" {
   type    = string
-  default = "t3.small"
+  default = "t3.micro"
 }
 
 variable "acm_certificate_arn" {
@@ -183,14 +203,34 @@ variable "github_org" {
   default = "koders-tribe"
 }
 
-variable "github_repo" {
-  type    = string
-  default = "inspect-lens-be"
+variable "github_repos" {
+  description = "GitHub repositories allowed to assume the Inspect Lens GitHub Actions IAM role."
+  type        = list(string)
+
+  default = [
+    "inspect-lens-be",
+    "inspect-image-analyzer"
+  ]
 }
 
-variable "ecr_repository_names" {
-  type    = list(string)
-  default = ["inspect-lens-be", "inspect-image-analyzer"]
+variable "ecr_repositories" {
+  description = "ECR repositories and their repository-specific settings."
+  type = map(object({
+    image_tag_mutability = string
+    scan_on_push         = bool
+  }))
+
+  default = {
+    inspect-lens-be = {
+      image_tag_mutability = "IMMUTABLE"
+      scan_on_push         = true
+    }
+
+    inspect-image-analyzer = {
+      image_tag_mutability = "MUTABLE"
+      scan_on_push         = false
+    }
+  }
 }
 
 variable "github_deploy_environments" {
@@ -201,4 +241,69 @@ variable "github_deploy_environments" {
 variable "tags" {
   type    = map(string)
   default = {}
+}
+
+variable "existing_db_identifier" {
+  description = "Existing RDS instance to adopt."
+  type        = string
+}
+
+variable "existing_db_subnet_group_name" {
+  description = "Existing RDS subnet group to adopt."
+  type        = string
+}
+
+variable "db_engine_version" {
+  type    = string
+  default = "18.3"
+}
+
+variable "db_allocated_storage" {
+  type    = number
+  default = 20
+}
+
+variable "db_max_allocated_storage" {
+  type    = number
+  default = 1000
+}
+
+variable "db_backup_retention_period" {
+  type    = number
+  default = 1
+}
+
+variable "db_deletion_protection" {
+  type    = bool
+  default = false
+}
+
+variable "existing_ec2_instance_id" {
+  description = "Existing EC2 instance to adopt into Terraform."
+  type        = string
+}
+
+variable "existing_ec2_instance_profile_name" {
+  description = "Existing EC2 IAM instance profile to reuse."
+  type        = string
+}
+
+variable "existing_ec2_security_group_ids" {
+  description = "Existing security groups attached to the EC2 instance."
+  type        = list(string)
+}
+
+variable "existing_ec2_subnet_id" {
+  description = "Existing subnet where the EC2 instance is currently running."
+  type        = string
+}
+
+variable "existing_ec2_ami_id" {
+  description = "Existing AMI used by the EC2 instance."
+  type        = string
+}
+
+variable "existing_ec2_name" {
+  description = "Existing EC2 Name tag."
+  type        = string
 }

@@ -1,5 +1,5 @@
 output "endpoint" {
-  description = "RDS hostname (no port)."
+  description = "RDS hostname."
   value       = aws_db_instance.this.address
 }
 
@@ -13,13 +13,4 @@ output "db_name" {
 
 output "username" {
   value = aws_db_instance.this.username
-}
-
-output "database_url_secret_arn" {
-  description = "Secrets Manager ARN containing DATABASE_URL. Do not put this in GitHub Actions."
-  value       = aws_secretsmanager_secret.database_url.arn
-}
-
-output "database_url_secret_name" {
-  value = aws_secretsmanager_secret.database_url.name
 }

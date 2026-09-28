@@ -51,14 +51,9 @@ output "ecr_repository_urls" {
   value = try(module.ecr[0].repository_urls, {})
 }
 
-output "github_build_role_arn" {
-  description = "GitHub Actions variable AWS_ROLE_ARN"
-  value       = try(module.github_oidc[0].build_role_arn, null)
-}
-
-output "github_deploy_role_arn" {
-  description = "GitHub Environment variable AWS_DEPLOY_ROLE_ARN"
-  value       = try(module.github_oidc[0].deploy_role_arn, null)
+output "github_actions_role_arn" {
+  description = "GitHub Actions IAM role ARN."
+  value       = try(module.github_oidc[0].github_actions_role_arn, null)
 }
 
 output "rds_endpoint" {
@@ -98,14 +93,14 @@ output "github_actions_handoff" {
   description = "Values to paste into inspect-lens-be GitHub settings after apply."
   value = {
     AWS_REGION              = var.aws_region
-    ECR_REPOSITORY          = try(var.ecr_repository_names[0], null)
-    ECR_ANALYZER_REPOSITORY = try(var.ecr_repository_names[1], null)
-    AWS_ROLE_ARN            = try(module.github_oidc[0].build_role_arn, null)
-    AWS_DEPLOY_ROLE_ARN     = try(module.github_oidc[0].deploy_role_arn, null)
+    ECR_REPOSITORY          = "inspect-lens-be"
+    ECR_ANALYZER_REPOSITORY = "inspect-image-analyzer"
+    AWS_ROLE_ARN            = try(module.github_oidc[0].github_actions_role_arn, null)
+    AWS_DEPLOY_ROLE_ARN     = try(module.github_oidc[0].github_actions_role_arn, null)
     EC2_INSTANCE_IDS        = try(module.compute[0].instance_id, null)
     EC2_DEPLOY_PATH         = var.enable_compute ? var.ec2_deploy_path : null
     EC2_TARGET_TAG_KEY      = "Name"
-    EC2_TARGET_TAG_VALUE    = var.enable_compute ? "inspect-lens-${var.environment}-app" : null
+    EC2_TARGET_TAG_VALUE    = var.enable_compute ? var.existing_ec2_name : null
     APP_HEALTHCHECK_URL     = try(module.compute[0].healthcheck_url, null)
   }
 }

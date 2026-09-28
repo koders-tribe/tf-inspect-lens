@@ -12,7 +12,7 @@ output "instance_public_ip" {
 }
 
 output "instance_profile_name" {
-  value = aws_iam_instance_profile.this.name
+  value = data.aws_iam_instance_profile.existing.name
 }
 
 output "deploy_path" {

@@ -29,16 +29,6 @@ data "aws_iam_policy_document" "app" {
   count = var.attach_app_policy && var.s3_bucket_arn != "" ? 1 : 0
 
   statement {
-    sid    = "S3ListBucket"
-    effect = "Allow"
-    actions = [
-      "s3:ListBucket",
-      "s3:GetBucketLocation",
-    ]
-    resources = [var.s3_bucket_arn]
-  }
-
-  statement {
     sid    = "S3ObjectAccess"
     effect = "Allow"
     actions = [
@@ -48,7 +38,9 @@ data "aws_iam_policy_document" "app" {
       "s3:AbortMultipartUpload",
     ]
     resources = [
-      "${var.s3_bucket_arn}/orgs/*",
+      "${var.s3_bucket_arn}/findings/*",
+      "${var.s3_bucket_arn}/inspection-reports/*",
+      "${var.s3_bucket_arn}/quotation-agreements/*",
     ]
   }
 
@@ -68,7 +60,7 @@ data "aws_iam_policy_document" "app" {
 }
 
 resource "aws_iam_policy" "app" {
-  count = length(data.aws_iam_policy_document.app)
+  count = var.attach_app_policy && var.s3_bucket_arn != "" ? 1 : 0
 
   name        = "${var.iam_user_name}-s3-ses"
   description = "Least-privilege S3 object access and SES send for Inspect Lens."
@@ -77,7 +69,7 @@ resource "aws_iam_policy" "app" {
 }
 
 resource "aws_iam_group_policy_attachment" "app" {
-  count = length(aws_iam_policy.app)
+  count = var.attach_app_policy && var.s3_bucket_arn != "" ? 1 : 0
 
   group      = aws_iam_group.this.name
   policy_arn = aws_iam_policy.app[0].arn

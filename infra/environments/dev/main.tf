@@ -55,32 +55,41 @@ module "network" {
   count  = var.enable_network ? 1 : 0
   source = "../../modules/network"
 
-  name_prefix          = local.name_prefix
-  vpc_cidr             = var.vpc_cidr
-  enable_nat_gateway   = var.enable_nat_gateway
-  enable_vpc_endpoints = var.enable_vpc_endpoints
-  tags                 = local.common_tags
+  existing_vpc_id                = var.existing_vpc_id
+  public_subnet_ids              = var.existing_public_subnet_ids
+  private_subnet_ids             = var.existing_private_subnet_ids
+  existing_app_security_group_id = var.existing_app_security_group_id
+  existing_rds_security_group_id = var.existing_rds_security_group_id
 }
 
 module "rds" {
   count  = var.enable_network && var.enable_rds ? 1 : 0
   source = "../../modules/rds"
 
-  name_prefix        = local.name_prefix
-  private_subnet_ids = module.network[0].private_subnet_ids
-  security_group_id  = module.network[0].rds_security_group_id
-  instance_class     = var.db_instance_class
-  db_name            = var.db_name
-  username           = var.db_username
-  tags               = local.common_tags
+  name_prefix                   = local.name_prefix
+  private_subnet_ids            = module.network[0].private_subnet_ids
+  security_group_id             = var.existing_rds_security_group_id
+  existing_db_identifier        = var.existing_db_identifier
+  existing_db_subnet_group_name = var.existing_db_subnet_group_name
+
+  engine_version          = var.db_engine_version
+  instance_class          = var.db_instance_class
+  allocated_storage       = var.db_allocated_storage
+  max_allocated_storage   = var.db_max_allocated_storage
+  db_name                 = var.db_name
+  username                = var.db_username
+  backup_retention_period = var.db_backup_retention_period
+  deletion_protection     = var.db_deletion_protection
+
+  tags = local.common_tags
 }
 
 module "ecr" {
   count  = var.enable_ecr ? 1 : 0
   source = "../../modules/ecr"
 
-  repository_names = var.ecr_repository_names
-  tags             = local.common_tags
+  repositories = var.ecr_repositories
+  tags         = local.common_tags
 }
 
 module "github_oidc" {
@@ -88,11 +97,11 @@ module "github_oidc" {
   source = "../../modules/github_oidc"
 
   name_prefix          = local.name_prefix
+  role_name            = "GitHubActionsInspectLensCDRole"
   github_org           = var.github_org
-  github_repo          = var.github_repo
+  github_repos         = var.github_repos
   create_oidc_provider = var.create_github_oidc_provider
   ecr_repository_arns  = values(module.ecr[0].repository_arns)
-  deploy_environments  = var.github_deploy_environments
   tags                 = local.common_tags
 }
 
@@ -108,16 +117,24 @@ module "compute" {
   count  = var.enable_network && var.enable_compute ? 1 : 0
   source = "../../modules/compute"
 
-  name_prefix           = local.name_prefix
-  vpc_id                = module.network[0].vpc_id
-  subnet_id             = module.network[0].public_subnet_ids[0]
-  app_security_group_id = module.network[0].app_security_group_id
-  alb_security_group_id = module.network[0].alb_security_group_id
-  ecr_repository_arns   = var.enable_ecr ? values(module.ecr[0].repository_arns) : []
-  instance_type         = var.ec2_instance_type
-  deploy_path           = var.ec2_deploy_path
-  enable_alb            = var.enable_alb
-  acm_certificate_arn   = var.acm_certificate_arn
-  public_subnet_ids     = module.network[0].public_subnet_ids
-  tags                  = local.common_tags
+  name_prefix = local.name_prefix
+
+  vpc_id    = module.network[0].vpc_id
+  subnet_id = var.existing_ec2_subnet_id
+
+  existing_ami_id                = var.existing_ec2_ami_id
+  existing_instance_profile_name = var.existing_ec2_instance_profile_name
+  existing_security_group_ids    = var.existing_ec2_security_group_ids
+  existing_instance_name         = var.existing_ec2_name
+
+  instance_type = var.ec2_instance_type
+
+  deploy_path = var.ec2_deploy_path
+
+  enable_alb          = var.enable_alb
+  acm_certificate_arn = var.acm_certificate_arn
+
+  public_subnet_ids = module.network[0].public_subnet_ids
+
+  tags = local.common_tags
 }

@@ -1,12 +1,12 @@
 resource "aws_ecr_repository" "this" {
-  for_each = toset(var.repository_names)
+  for_each = var.repositories
 
-  name                 = each.value
-  image_tag_mutability = "MUTABLE"
+  name                 = each.key
+  image_tag_mutability = each.value.image_tag_mutability
   force_delete         = false
 
   image_scanning_configuration {
-    scan_on_push = true
+    scan_on_push = each.value.scan_on_push
   }
 
   encryption_configuration {
@@ -14,7 +14,7 @@ resource "aws_ecr_repository" "this" {
   }
 
   tags = merge(var.tags, {
-    Name = each.value
+    Name = each.key
   })
 }
 
@@ -27,7 +27,7 @@ resource "aws_ecr_lifecycle_policy" "this" {
     rules = [
       {
         rulePriority = 1
-        description  = "Keep the newest tagged images"
+        description  = "Keep the newest images within the configured retention count"
         selection = {
           tagStatus   = "any"
           countType   = "imageCountMoreThan"

@@ -1,23 +1,23 @@
 output "vpc_id" {
-  value = aws_vpc.this.id
+  value = data.aws_vpc.existing.id
 }
 
 output "public_subnet_ids" {
-  value = aws_subnet.public[*].id
+  value = var.public_subnet_ids
 }
 
 output "private_subnet_ids" {
-  value = aws_subnet.private[*].id
+  value = var.private_subnet_ids
 }
 
 output "alb_security_group_id" {
-  value = aws_security_group.alb.id
+  value = data.aws_security_group.app.id
 }
 
 output "app_security_group_id" {
-  value = aws_security_group.app.id
+  value = data.aws_security_group.app.id
 }
 
 output "rds_security_group_id" {
-  value = aws_security_group.rds.id
+  value = data.aws_security_group.rds.id
 }

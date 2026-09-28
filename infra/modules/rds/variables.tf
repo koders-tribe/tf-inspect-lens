@@ -1,20 +1,32 @@
 variable "name_prefix" {
-  description = "Prefix for RDS identifiers, e.g. inspect-lens-dev."
+  description = "Prefix used for supporting resources."
   type        = string
 }
 
 variable "private_subnet_ids" {
-  type = list(string)
+  description = "Existing private subnet IDs used by the RDS subnet group."
+  type        = list(string)
 }
 
 variable "security_group_id" {
-  type = string
+  description = "Existing RDS security group ID."
+  type        = string
+}
+
+variable "existing_db_identifier" {
+  description = "Existing RDS instance identifier to adopt."
+  type        = string
+}
+
+variable "existing_db_subnet_group_name" {
+  description = "Existing RDS DB subnet group name to adopt."
+  type        = string
 }
 
 variable "engine_version" {
   description = "PostgreSQL engine version."
   type        = string
-  default     = "16.6"
+  default     = "18.3"
 }
 
 variable "instance_class" {
@@ -27,14 +39,19 @@ variable "allocated_storage" {
   default = 20
 }
 
+variable "max_allocated_storage" {
+  type    = number
+  default = 1000
+}
+
 variable "db_name" {
   type    = string
-  default = "inspect_lens"
+  default = null
 }
 
 variable "username" {
   type    = string
-  default = "inspect_lens"
+  default = "postgres"
 }
 
 variable "multi_az" {
@@ -44,12 +61,7 @@ variable "multi_az" {
 
 variable "backup_retention_period" {
   type    = number
-  default = 7
-}
-
-variable "skip_final_snapshot" {
-  type    = bool
-  default = true
+  default = 1
 }
 
 variable "deletion_protection" {
