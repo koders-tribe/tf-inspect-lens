@@ -31,16 +31,21 @@ data "aws_iam_policy_document" "ecr_pull" {
     resources = ["*"]
   }
 
-  statement {
-    sid = "EcrPull"
-    actions = [
-      "ecr:BatchCheckLayerAvailability",
-      "ecr:GetDownloadUrlForLayer",
-      "ecr:BatchGetImage",
-      "ecr:DescribeRepositories",
-      "ecr:DescribeImages",
-    ]
-    resources = var.ecr_repository_arns
+  # An empty resources list is an invalid policy, so skip when ECR is off.
+  dynamic "statement" {
+    for_each = length(var.ecr_repository_arns) > 0 ? [1] : []
+
+    content {
+      sid = "EcrPull"
+      actions = [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+      ]
+      resources = var.ecr_repository_arns
+    }
   }
 }
 
@@ -68,20 +73,18 @@ resource "aws_security_group_rule" "ssh" {
   description       = "Optional SSH; prefer SSM"
 }
 
+data "aws_subnet" "this" {
+  id = var.subnet_id
+}
+
 locals {
-  user_data = <<-EOT
-    #!/bin/bash
-    set -euxo pipefail
-    dnf update -y
-    dnf install -y docker jq awscli
-    systemctl enable --now docker
-    mkdir -p /usr/local/lib/docker/cli-plugins
-    curl -fsSL "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64" \
-      -o /usr/local/lib/docker/cli-plugins/docker-compose
-    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-    mkdir -p ${var.deploy_path} /opt/inspect-lens-uploads
-    echo "Host bootstrap complete. Copy inspect-lens-be/deploy/ec2 to ${var.deploy_path} and create app.env / analyzer.env."
-  EOT
+  uploads_enabled = var.uploads_volume_gb > 0
+
+  user_data = templatefile("${path.module}/user_data.sh.tftpl", {
+    deploy_path       = var.deploy_path
+    uploads_mount     = var.uploads_mount_path
+    uploads_volume_id = local.uploads_enabled ? aws_ebs_volume.uploads[0].id : ""
+  })
 }
 
 resource "aws_instance" "this" {
@@ -109,10 +112,21 @@ resource "aws_instance" "this" {
     Name        = "${var.name_prefix}-app"
     Environment = lookup(var.tags, "Environment", var.name_prefix)
   })
+
+  # The AMI comes from the "latest AL2023" parameter; without this every new
+  # AMI release would replace the instance. user_data only runs on first boot.
+  # Replace the instance deliberately to pick up either change.
+  lifecycle {
+    ignore_changes = [ami, user_data]
+  }
 }
 
+# Created before the instance (in the subnet's AZ) so user_data can mount it by
+# volume ID.
 resource "aws_ebs_volume" "uploads" {
-  availability_zone = aws_instance.this.availability_zone
+  count = local.uploads_enabled ? 1 : 0
+
+  availability_zone = data.aws_subnet.this.availability_zone
   size              = var.uploads_volume_gb
   type              = "gp3"
   encrypted         = true
@@ -123,9 +137,21 @@ resource "aws_ebs_volume" "uploads" {
 }
 
 resource "aws_volume_attachment" "uploads" {
+  count = local.uploads_enabled ? 1 : 0
+
   device_name = "/dev/sdf"
-  volume_id   = aws_ebs_volume.uploads.id
+  volume_id   = aws_ebs_volume.uploads[0].id
   instance_id = aws_instance.this.id
+}
+
+moved {
+  from = aws_ebs_volume.uploads
+  to   = aws_ebs_volume.uploads[0]
+}
+
+moved {
+  from = aws_volume_attachment.uploads
+  to   = aws_volume_attachment.uploads[0]
 }
 
 resource "aws_lb" "this" {

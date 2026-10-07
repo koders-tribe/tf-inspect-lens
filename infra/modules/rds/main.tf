@@ -46,6 +46,8 @@ resource "aws_secretsmanager_secret" "database_url" {
   name        = "${var.name_prefix}/database-url"
   description = "DATABASE_URL for inspect-lens-be (asyncpg)."
   tags        = var.tags
+
+  recovery_window_in_days = var.secret_recovery_window_days
 }
 
 resource "aws_secretsmanager_secret_version" "database_url" {

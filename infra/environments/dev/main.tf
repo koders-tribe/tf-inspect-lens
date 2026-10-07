@@ -73,6 +73,8 @@ module "rds" {
   db_name            = var.db_name
   username           = var.db_username
   tags               = local.common_tags
+
+  secret_recovery_window_days = var.secret_recovery_window_days
 }
 
 module "ecr" {
@@ -93,6 +95,7 @@ module "github_oidc" {
   create_oidc_provider = var.create_github_oidc_provider
   ecr_repository_arns  = values(module.ecr[0].repository_arns)
   deploy_environments  = var.github_deploy_environments
+  build_allowed_refs   = var.github_build_allowed_refs
   tags                 = local.common_tags
 }
 
@@ -100,8 +103,9 @@ module "secrets" {
   count  = var.enable_secrets ? 1 : 0
   source = "../../modules/secrets"
 
-  name_prefix = local.name_prefix
-  tags        = local.common_tags
+  name_prefix             = local.name_prefix
+  recovery_window_in_days = var.secret_recovery_window_days
+  tags                    = local.common_tags
 }
 
 module "compute" {

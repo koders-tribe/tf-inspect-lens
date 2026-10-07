@@ -35,9 +35,15 @@ variable "root_volume_gb" {
 }
 
 variable "uploads_volume_gb" {
-  description = "EBS volume mounted for local profile/signature uploads (FileUploadService)."
+  description = "EBS volume mounted for local profile/signature uploads (FileUploadService). 0 skips the volume."
   type        = number
   default     = 20
+}
+
+variable "uploads_mount_path" {
+  description = "Where user_data mounts the uploads volume."
+  type        = string
+  default     = "/opt/inspect-lens-uploads"
 }
 
 variable "deploy_path" {

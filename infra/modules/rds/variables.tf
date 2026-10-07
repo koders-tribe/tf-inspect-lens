@@ -12,9 +12,15 @@ variable "security_group_id" {
 }
 
 variable "engine_version" {
-  description = "PostgreSQL engine version."
+  description = "PostgreSQL major version. RDS picks its current default minor in the region; auto_minor_version_upgrade moves it forward without a plan diff."
   type        = string
-  default     = "16.6"
+  default     = "16"
+}
+
+variable "secret_recovery_window_days" {
+  description = "Recovery window for the DATABASE_URL secret. 0 deletes immediately (practice accounts)."
+  type        = number
+  default     = 30
 }
 
 variable "instance_class" {

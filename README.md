@@ -87,6 +87,6 @@ Access keys are **not** created in Terraform (they would land in state). Create 
 
 ## Requirements
 
-- Terraform >= 1.5
+- Terraform >= 1.10 (S3 backend `use_lockfile`)
 - AWS provider ~> 5.0
 - Permission to manage S3, IAM, SES, ECR, VPC, RDS, EC2, SSM, Secrets Manager in account `055255093542`

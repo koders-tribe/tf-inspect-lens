@@ -16,8 +16,10 @@ resource "aws_sesv2_email_identity" "domain" {
   }
 }
 
+# Easy DKIM always issues 3 tokens. The tokens are unknown until apply, so the
+# count cannot be derived from them.
 resource "aws_route53_record" "dkim" {
-  count = var.domain != "" && var.route53_zone_id != "" ? length(aws_sesv2_email_identity.domain[0].dkim_signing_attributes[0].tokens) : 0
+  count = var.domain != "" && var.route53_zone_id != "" ? 3 : 0
 
   zone_id = var.route53_zone_id
   name    = "${aws_sesv2_email_identity.domain[0].dkim_signing_attributes[0].tokens[count.index]}._domainkey.${var.domain}"

@@ -26,7 +26,8 @@ resource "aws_iam_user_group_membership" "this" {
 }
 
 data "aws_iam_policy_document" "app" {
-  count = var.attach_app_policy && var.s3_bucket_arn != "" ? 1 : 0
+  # Must be known at plan time: a new bucket's ARN is not, so do not test it here.
+  count = var.attach_app_policy ? 1 : 0
 
   statement {
     sid    = "S3ListBucket"

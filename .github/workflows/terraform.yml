@@ -11,6 +11,9 @@ on:
       - "infra/**"
       - ".github/workflows/terraform.yml"
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -21,10 +24,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.9.8"
+          # Lowest supported version (required_version >= 1.10.0, use_lockfile).
+          terraform_version: "1.10.5"
       - name: Format
         run: terraform fmt -check -recursive ../..
       - name: Init
         run: terraform init -backend=false
       - name: Validate
         run: terraform validate
+      - name: Test (mocked providers, no AWS)
+        run: terraform test

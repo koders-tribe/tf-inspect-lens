@@ -75,6 +75,12 @@ variable "enable_alb" {
   default = false
 }
 
+variable "secret_recovery_window_days" {
+  description = "Secrets Manager recovery window. 0 lets destroy + re-apply reuse secret names (practice accounts)."
+  type        = number
+  default     = 30
+}
+
 variable "enable_secrets" {
   type    = bool
   default = true
@@ -196,6 +202,12 @@ variable "ecr_repository_names" {
 variable "github_deploy_environments" {
   type    = list(string)
   default = ["staging", "production"]
+}
+
+variable "github_build_allowed_refs" {
+  description = "Refs that may assume the build role. inspect-lens-be cd.yml builds on tag pushes v*.*.* and workflow_dispatch; dispatch from other branches is denied."
+  type        = list(string)
+  default     = ["refs/heads/main", "refs/tags/v*"]
 }
 
 variable "tags" {
