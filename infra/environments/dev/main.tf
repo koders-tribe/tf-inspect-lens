@@ -1,6 +1,7 @@
 locals {
   name_prefix = "inspect-lens-${var.environment}"
   bucket_name = coalesce(var.bucket_name, "${local.name_prefix}-${var.account_id}-${var.aws_region}")
+  ses_sender  = var.ses_sender != null ? var.ses_sender : try(var.ses_emails[0], null)
   common_tags = merge(var.tags, {
     Project     = var.project_name
     Environment = var.environment
@@ -62,6 +63,8 @@ module "network" {
   enable_nat_gateway   = var.enable_nat_gateway
   enable_vpc_endpoints = var.enable_vpc_endpoints
   tags                 = local.common_tags
+
+  public_app_ingress_cidrs = var.enable_public_http && var.enable_compute ? ["0.0.0.0/0"] : []
 }
 
 module "rds" {
@@ -129,4 +132,14 @@ module "compute" {
   acm_certificate_arn   = var.acm_certificate_arn
   public_subnet_ids     = module.network[0].public_subnet_ids
   tags                  = local.common_tags
+
+  root_volume_gb    = var.ec2_root_volume_gb
+  uploads_volume_gb = var.ec2_uploads_volume_gb
+  swap_gb           = var.ec2_swap_gb
+  enable_eip        = var.enable_eip
+  public_http       = var.enable_public_http
+
+  # Same scoped S3 + SES policy as the app IAM user, so the API can move from
+  # static keys to the instance role. The IAM user stays until it has.
+  extra_policy_arns = [module.iam.app_policy_arn]
 }

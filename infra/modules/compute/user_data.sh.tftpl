@@ -2,6 +2,17 @@
 # Runs once, on first boot. aws_instance ignores user_data changes, so edits
 # here only reach new instances.
 set -euxo pipefail
+%{ if swap_gb > 0 ~}
+
+# Swap for small instances (t3.micro has 1 GiB RAM).
+if [ ! -f /swapfile ]; then
+  fallocate -l ${swap_gb}G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+fi
+swapon /swapfile || true
+grep -q '^/swapfile ' /etc/fstab || echo "/swapfile none swap sw 0 0" >> /etc/fstab
+%{ endif ~}
 
 dnf update -y
 # AWS CLI v2 is preinstalled on AL2023; the v1 "awscli" package is not needed.

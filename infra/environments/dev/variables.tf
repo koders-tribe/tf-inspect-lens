@@ -157,6 +157,12 @@ variable "ses_route53_zone_id" {
   default     = ""
 }
 
+variable "ses_sender" {
+  description = "EMAIL_SENDER for app.env (a verified identity). Null means the first ses_emails entry."
+  type        = string
+  default     = null
+}
+
 ###############################################################################
 # Network / RDS / compute
 ###############################################################################
@@ -194,6 +200,35 @@ variable "acm_certificate_arn" {
 variable "ec2_deploy_path" {
   type    = string
   default = "/opt/inspect-lens-be"
+}
+
+variable "ec2_root_volume_gb" {
+  type    = number
+  default = 40
+}
+
+variable "ec2_uploads_volume_gb" {
+  description = "Uploads EBS volume size. 0 skips the volume."
+  type        = number
+  default     = 20
+}
+
+variable "ec2_swap_gb" {
+  description = "Swap file created on first boot. Useful on t3.micro (1 GiB RAM)."
+  type        = number
+  default     = 0
+}
+
+variable "enable_eip" {
+  description = "Elastic IP for the app instance (stable address without an ALB)."
+  type        = bool
+  default     = false
+}
+
+variable "enable_public_http" {
+  description = "Practice only: open the app port to 0.0.0.0/0 over plain HTTP, bypassing the ALB."
+  type        = bool
+  default     = false
 }
 
 ###############################################################################

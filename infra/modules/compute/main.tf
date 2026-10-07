@@ -55,6 +55,16 @@ resource "aws_iam_role_policy" "ecr_pull" {
   policy = data.aws_iam_policy_document.ecr_pull.json
 }
 
+# e.g. the app's scoped S3 + SES policy, so the API can use the instance role
+# instead of static keys. count, not for_each: the ARNs are unknown until apply
+# in a new account, but the list length is known.
+resource "aws_iam_role_policy_attachment" "extra" {
+  count = length(var.extra_policy_arns)
+
+  role       = aws_iam_role.instance.name
+  policy_arn = var.extra_policy_arns[count.index]
+}
+
 resource "aws_iam_instance_profile" "this" {
   name = "${var.name_prefix}-ec2"
   role = aws_iam_role.instance.name
@@ -84,7 +94,15 @@ locals {
     deploy_path       = var.deploy_path
     uploads_mount     = var.uploads_mount_path
     uploads_volume_id = local.uploads_enabled ? aws_ebs_volume.uploads[0].id : ""
+    swap_gb           = var.swap_gb
   })
+
+  public_ip = var.enable_eip ? aws_eip.this[0].public_ip : aws_instance.this.public_ip
+  api_url = (
+    var.enable_alb ? (var.acm_certificate_arn != "" ? "https://${aws_lb.this[0].dns_name}" : "http://${aws_lb.this[0].dns_name}") :
+    var.public_http ? "http://${local.public_ip}:${var.app_host_port}" :
+    null
+  )
 }
 
 resource "aws_instance" "this" {
@@ -119,6 +137,18 @@ resource "aws_instance" "this" {
   lifecycle {
     ignore_changes = [ami, user_data]
   }
+}
+
+# Stable public IP across stop/start (the auto-assigned one changes).
+resource "aws_eip" "this" {
+  count = var.enable_eip ? 1 : 0
+
+  domain   = "vpc"
+  instance = aws_instance.this.id
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-app"
+  })
 }
 
 # Created before the instance (in the subnet's AZ) so user_data can mount it by

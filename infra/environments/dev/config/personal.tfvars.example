@@ -47,12 +47,32 @@ enable_secrets = true
 # practising CD here.
 enable_github_oidc = false
 
-enable_network       = false
+# Turn these on in order (docs/aws-setup.md). Roughly per month while running:
+# EC2 t3.micro ~$9 + public IPv4/EIP ~$3.60, RDS db.t4g.micro ~$13 + storage.
+# Destroy when not practising.
+enable_network = false
+enable_rds     = false
+enable_compute = false
+
+# Kept off on purpose: NAT ~$35/mo, ALB ~$18/mo, VPC endpoints ~$100/mo.
 enable_nat_gateway   = false
-enable_vpc_endpoints = false
-enable_rds           = false
-enable_compute       = false
 enable_alb           = false
+enable_vpc_endpoints = false
+
+###############################################################################
+# Practice compute / database (used once the flags above are on)
+###############################################################################
+
+ec2_instance_type     = "t3.micro" # switch to t3.small if API + analyzer run out of memory
+ec2_swap_gb           = 2
+ec2_root_volume_gb    = 20
+ec2_uploads_volume_gb = 20
+
+# No ALB: reach the API at http://<EIP>:8001 (plain HTTP, open to the internet).
+enable_public_http = true
+enable_eip         = true
+
+db_instance_class = "db.t4g.micro" # single-AZ (rds multi_az defaults to false)
 
 tags = {
   Project     = "Inspect Lens"

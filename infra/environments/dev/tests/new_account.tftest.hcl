@@ -100,3 +100,50 @@ run "compute_without_ecr" {
     error_message = "github_oidc needs ECR and should be off"
   }
 }
+
+# Mirrors config/personal.tfvars.example with every practice flag on.
+run "practice_mode" {
+  command = plan
+
+  variables {
+    allow_destroy               = true
+    secret_recovery_window_days = 0
+    enable_github_oidc          = false
+    enable_network              = true
+    enable_rds                  = true
+    enable_compute              = true
+    enable_public_http          = true
+    enable_eip                  = true
+    ec2_instance_type           = "t3.micro"
+    ec2_swap_gb                 = 2
+    ec2_root_volume_gb          = 20
+    ec2_uploads_volume_gb       = 20
+    ses_emails                  = ["me@example.com"]
+  }
+
+  assert {
+    condition     = output.ses_sender == "me@example.com"
+    error_message = "ses_sender should default to the first ses_emails entry"
+  }
+
+  assert {
+    condition     = output.app_env.S3_REGION == "ap-southeast-2" && output.app_env.SES_REGION == "ap-southeast-2"
+    error_message = "app_env regions should follow aws_region"
+  }
+}
+
+run "no_uploads_volume" {
+  command = plan
+
+  variables {
+    enable_network        = true
+    enable_compute        = true
+    ec2_uploads_volume_gb = 0
+    ses_sender            = "noreply@example.com"
+  }
+
+  assert {
+    condition     = output.ses_sender == "noreply@example.com"
+    error_message = "explicit ses_sender should win"
+  }
+}

@@ -94,6 +94,35 @@ output "app_healthcheck_url" {
   value       = try(module.compute[0].healthcheck_url, null)
 }
 
+output "ses_sender" {
+  description = "EMAIL_SENDER in app.env."
+  value       = local.ses_sender
+}
+
+output "ec2_public_ip" {
+  value = try(module.compute[0].instance_public_ip, null)
+}
+
+output "api_url" {
+  description = "APP_PUBLIC_URL: ALB URL, or http://<ip>:<port> with enable_public_http."
+  value       = try(module.compute[0].api_url, null)
+}
+
+output "app_env" {
+  description = "Non-secret app.env values. DATABASE_URL is read from the named secret on the host; secret values are never output."
+  value = {
+    S3_BUCKET                = module.s3_bucket.bucket_id
+    S3_REGION                = var.aws_region
+    SES_REGION               = var.aws_region
+    EMAIL_SENDER             = local.ses_sender
+    DATABASE_URL_SECRET_NAME = try(module.rds[0].database_url_secret_name, null)
+    APP_SECRET_NAME          = try(module.secrets[0].app_secret_name, null)
+    APP_PUBLIC_URL           = try(module.compute[0].api_url, null)
+    EC2_INSTANCE_ID          = try(module.compute[0].instance_id, null)
+    ECR_REPOSITORY_URLS      = try(module.ecr[0].repository_urls, {})
+  }
+}
+
 output "github_actions_handoff" {
   description = "Values to paste into inspect-lens-be GitHub settings after apply."
   value = {
