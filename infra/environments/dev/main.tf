@@ -1,5 +1,6 @@
 locals {
   name_prefix = "inspect-lens-${var.environment}"
+  bucket_name = coalesce(var.bucket_name, "${local.name_prefix}-${var.account_id}-${var.aws_region}")
   common_tags = merge(var.tags, {
     Project     = var.project_name
     Environment = var.environment
@@ -13,8 +14,9 @@ locals {
 module "s3_bucket" {
   source = "../../modules/s3_bucket"
 
-  bucket_name          = var.bucket_name
+  bucket_name          = local.bucket_name
   cors_allowed_origins = var.cors_allowed_origins
+  force_destroy        = var.allow_destroy
   tags                 = local.common_tags
 }
 
@@ -74,6 +76,8 @@ module "rds" {
   username           = var.db_username
   tags               = local.common_tags
 
+  skip_final_snapshot         = var.allow_destroy
+  deletion_protection         = !var.allow_destroy
   secret_recovery_window_days = var.secret_recovery_window_days
 }
 
@@ -82,6 +86,7 @@ module "ecr" {
   source = "../../modules/ecr"
 
   repository_names = var.ecr_repository_names
+  force_delete     = var.allow_destroy
   tags             = local.common_tags
 }
 

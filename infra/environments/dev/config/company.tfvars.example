@@ -1,14 +1,28 @@
-###############################################################################
-# AWS Configuration
-###############################################################################
-
-aws_region = "ap-south-1"
+# cp company.tfvars.example company.tfvars   (gitignored)
+# terraform plan -var-file=config/company.tfvars
 
 ###############################################################################
-# Existing S3 bucket (import if it already exists)
+# Account / region
 ###############################################################################
 
-bucket_name = "inspect-lens-demo-dev-055255093542-ap-south-1-an"
+account_id = "<ACCOUNT_ID>"
+
+# Region the existing company resources live in. Every resource in this stack
+# is created/read there, so it must match the current stack, not a new choice.
+aws_region = "<REGION>"
+
+allow_destroy               = false
+secret_recovery_window_days = 30
+
+###############################################################################
+# Existing S3 bucket
+#
+# Set explicitly. If left unset, the name is computed as
+# inspect-lens-<environment>-<account_id>-<aws_region>, which differs from the
+# existing bucket's name, so Terraform would plan to REPLACE (destroy) it.
+###############################################################################
+
+bucket_name = "inspect-lens-demo-dev-<ACCOUNT_ID>-<REGION>-an"
 
 # Frontend origins that PUT/GET S3 via presigned URLs. Required for browser uploads.
 cors_allowed_origins = [
@@ -32,17 +46,17 @@ policy_arns    = []
 ses_emails = [
   # "noreply@example.com",
 ]
-ses_domain           = ""
-ses_route53_zone_id  = ""
+ses_domain          = ""
+ses_route53_zone_id = ""
 
 ###############################################################################
 # Feature flags — apply S3/IAM/SES/ECR/OIDC first, then turn these on
 ###############################################################################
 
-enable_ecr                 = true
-enable_github_oidc         = true
+enable_ecr                  = true
+enable_github_oidc          = true
 create_github_oidc_provider = true
-enable_secrets             = true
+enable_secrets              = true
 
 enable_network       = false
 enable_nat_gateway   = false
@@ -55,12 +69,12 @@ enable_alb           = false
 # When enable_network / enable_rds / enable_compute are true
 ###############################################################################
 
-# vpc_cidr           = "10.20.0.0/16"
-# db_instance_class  = "db.t4g.micro"
-# db_name            = "inspect_lens"
-# db_username        = "inspect_lens"
-# ec2_instance_type  = "t3.small"
-# ec2_deploy_path    = "/opt/inspect-lens-be"
+# vpc_cidr            = "10.20.0.0/16"
+# db_instance_class   = "db.t4g.micro"
+# db_name             = "inspect_lens"
+# db_username         = "inspect_lens"
+# ec2_instance_type   = "t3.small"
+# ec2_deploy_path     = "/opt/inspect-lens-be"
 # acm_certificate_arn = ""
 
 ###############################################################################
@@ -74,6 +88,7 @@ ecr_repository_names = [
   "inspect-image-analyzer",
 ]
 github_deploy_environments = ["staging", "production"]
+github_build_allowed_refs  = ["refs/heads/main", "refs/tags/v*"]
 
 tags = {
   Project     = "Inspect Lens"

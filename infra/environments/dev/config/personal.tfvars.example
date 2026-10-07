@@ -1,0 +1,61 @@
+# Personal practice account. Cheap settings; everything can be destroyed.
+# cp personal.tfvars.example personal.tfvars   (gitignored)
+# terraform plan -var-file=config/personal.tfvars
+# Auth: export AWS_PROFILE=inspect-personal (docs/aws-setup.md).
+
+###############################################################################
+# Account / region
+###############################################################################
+
+account_id = "<ACCOUNT_ID>"
+aws_region = "ap-southeast-2"
+
+# Lets destroy remove non-empty S3/ECR, skips the RDS final snapshot and
+# deletes secrets immediately so the same names can be re-created.
+allow_destroy               = true
+secret_recovery_window_days = 0
+
+###############################################################################
+# S3 — bucket_name unset: inspect-lens-dev-<account_id>-ap-southeast-2
+###############################################################################
+
+cors_allowed_origins = [
+  "http://localhost:3000",
+]
+
+###############################################################################
+# IAM / SES
+###############################################################################
+
+iam_user_name  = "inspect-lens-dev"
+iam_group_name = "inspect-lens-s3-developers"
+policy_arns    = []
+
+# A new account is in the SES sandbox: verify sender AND recipient addresses.
+ses_emails = [
+  # "you@example.com",
+]
+
+###############################################################################
+# Feature flags
+###############################################################################
+
+enable_ecr     = true
+enable_secrets = true
+
+# Trusts koders-tribe/inspect-lens-be from this account; off unless you are
+# practising CD here.
+enable_github_oidc = false
+
+enable_network       = false
+enable_nat_gateway   = false
+enable_vpc_endpoints = false
+enable_rds           = false
+enable_compute       = false
+enable_alb           = false
+
+tags = {
+  Project     = "Inspect Lens"
+  Environment = "dev"
+  Owner       = "practice"
+}

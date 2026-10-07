@@ -1,0 +1,13 @@
+# cp backend-company.hcl.example backend-company.hcl   (gitignored)
+# terraform init -reconfigure -backend-config=config/backend-company.hcl
+#
+# The company state bucket already exists; do not run infra/bootstrap there.
+# bucket, key and region must match the existing state EXACTLY. A different
+# key or bucket gives Terraform an empty state, and the next plan would try to
+# create every resource again.
+
+bucket       = "inspect-lens-terraform-state-<ACCOUNT_ID>"
+key          = "dev/terraform.tfstate"
+region       = "<REGION>" # region of the existing state bucket
+encrypt      = true
+use_lockfile = true

@@ -1,17 +1,32 @@
 ###############################################################################
-# AWS Region
+# Account / region (set per account in config/<name>.tfvars)
 ###############################################################################
 
-variable "aws_region" {
-  description = "AWS region (Inspect Lens default is ap-south-1)."
+variable "account_id" {
+  description = "AWS account this stack belongs to. The provider refuses any other account."
   type        = string
-  default     = "ap-south-1"
+
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.account_id))
+    error_message = "account_id must be a 12-digit AWS account ID."
+  }
+}
+
+variable "aws_region" {
+  description = "AWS region for every resource in this stack."
+  type        = string
 }
 
 variable "aws_profile" {
-  description = "AWS CLI profile. Leave as default if using env vars / SSO."
+  description = "AWS CLI profile. Leave null and use AWS_PROFILE or exported credentials (docs/aws-setup.md)."
   type        = string
-  default     = "default"
+  default     = null
+}
+
+variable "allow_destroy" {
+  description = "Practice accounts: let destroy remove non-empty S3/ECR and skip the RDS final snapshot and deletion protection."
+  type        = bool
+  default     = false
 }
 
 variable "project_name" {
@@ -91,8 +106,9 @@ variable "enable_secrets" {
 ###############################################################################
 
 variable "bucket_name" {
-  description = "App bucket for photos and PDFs. Import if it already exists."
+  description = "App bucket for photos and PDFs. Null means inspect-lens-<environment>-<account_id>-<aws_region>. Set it explicitly for an existing bucket: a different name replaces the bucket."
   type        = string
+  default     = null
 }
 
 variable "cors_allowed_origins" {

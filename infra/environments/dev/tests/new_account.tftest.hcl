@@ -22,13 +22,42 @@ mock_provider "aws" {
 mock_provider "random" {}
 
 variables {
-  bucket_name    = "inspect-lens-test-bucket"
+  account_id     = "111111111111"
+  aws_region     = "ap-southeast-2"
   iam_user_name  = "inspect-lens-test"
   iam_group_name = "inspect-lens-test"
 }
 
 run "defaults" {
   command = plan
+
+  assert {
+    condition     = local.bucket_name == "inspect-lens-dev-111111111111-ap-southeast-2"
+    error_message = "bucket name should be computed from environment, account and region"
+  }
+}
+
+run "explicit_bucket_name_wins" {
+  command = plan
+
+  variables {
+    bucket_name = "existing-company-bucket"
+  }
+
+  assert {
+    condition     = local.bucket_name == "existing-company-bucket"
+    error_message = "an explicit bucket_name must not be replaced by the computed name"
+  }
+}
+
+run "rejects_bad_account_id" {
+  command = plan
+
+  variables {
+    account_id = "not-an-account"
+  }
+
+  expect_failures = [var.account_id]
 }
 
 run "ses_domain_with_route53" {

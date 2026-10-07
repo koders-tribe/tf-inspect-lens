@@ -18,6 +18,9 @@
 # Ignore every tfvars file
 !*.tfvars.example
 
+# Per-account backend configs (bucket names carry account IDs); keep *.hcl.example
+**/config/*.hcl
+
 # -----------------------------------------------------------------------------
 # Terraform Plan Files
 # -----------------------------------------------------------------------------

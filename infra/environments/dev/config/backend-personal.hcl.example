@@ -1,0 +1,11 @@
+# cp backend-personal.hcl.example backend-personal.hcl   (gitignored)
+# terraform init -backend-config=config/backend-personal.hcl
+#
+# bucket is the bootstrap output state_bucket_name (infra/bootstrap).
+# Credentials come from AWS_PROFILE / exported env vars, not from this file.
+
+bucket       = "inspect-lens-terraform-state-<ACCOUNT_ID>-ap-southeast-2"
+key          = "dev/terraform.tfstate"
+region       = "ap-southeast-2"
+encrypt      = true
+use_lockfile = true
