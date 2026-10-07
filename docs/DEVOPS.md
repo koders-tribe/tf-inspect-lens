@@ -29,12 +29,14 @@ Copy `terraform output github_actions_handoff`:
 
 | Variable | Source |
 | --- | --- |
-| `AWS_REGION` | `ap-south-1` |
-| `AWS_ACCOUNT_ID` | `055255093542` |
+| `AWS_REGION` | output `github_actions_handoff.AWS_REGION` (`aws_region` in tfvars) |
+| `AWS_ACCOUNT_ID` | `account_id` in tfvars |
 | `ECR_REPOSITORY` | `inspect-lens-be` |
 | `ECR_ANALYZER_REPOSITORY` | `inspect-image-analyzer` |
 | `AWS_ROLE_ARN` | output `github_build_role_arn` |
 | `CD_ENABLED` | `false` until a staging deploy works |
+
+The build role (`AWS_ROLE_ARN`) only trusts `refs/heads/main` and `refs/tags/v*` (`github_build_allowed_refs`). Run `workflow_dispatch` from `main`; a dispatch from another branch fails at "Configure AWS credentials" unless that ref is added. The deploy role trusts the `staging` and `production` environments, and can only run SSM commands on instances tagged `Name=inspect-lens-<env>-app`.
 
 ### 2. GitHub Environments `staging` and `production`
 
@@ -60,18 +62,18 @@ Create both. Production: required reviewers; deploy branches tags `v*` and `main
 4. Write `app.env` and `analyzer.env` from Secrets Manager. `ANALYZER_TOKEN_API_KEY` must equal analyzer `TOKEN_ENDPOINT_API_KEY`.
 5. Do **not** open SSH 22 for CD.
 
-`app.env` (never GitHub):
+`app.env` (never GitHub). Non-secret values come from `terraform output app_env`:
 
 ```bash
 APP_ENV=prod
-DATABASE_URL=   # from secret inspect-lens-<env>/database-url
+DATABASE_URL=   # from secret app_env.DATABASE_URL_SECRET_NAME (inspect-lens-<env>/database-url)
 JWT_SECRET_KEY=
-AWS_ACCESS_KEY_ID=
+AWS_ACCESS_KEY_ID=       # IAM user keys; the instance role has the same policy once the API supports it
 AWS_SECRET_ACCESS_KEY=
-S3_BUCKET=
-S3_REGION=ap-south-1
-SES_REGION=ap-south-1
-EMAIL_SENDER=   # must be a verified SES identity
+S3_BUCKET=      # app_env.S3_BUCKET
+S3_REGION=      # app_env.S3_REGION
+SES_REGION=     # app_env.SES_REGION
+EMAIL_SENDER=   # app_env.EMAIL_SENDER; must be a verified SES identity
 GOOGLE_API_KEY=
 ANALYZER_SERVICE_URL=http://inspect-image-analyzer:5000
 ANALYZER_TOKEN_API_KEY=

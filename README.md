@@ -2,7 +2,7 @@
 
 Terraform for **Inspect Lens** AWS infrastructure. Application code and deploy scripts live in [`inspect-lens-be`](https://github.com/koders-tribe/inspect-lens-be). The image analyzer lives in [`inspect-image-analyzer`](https://github.com/koders-tribe/inspect-image-analyzer).
 
-Default region: **ap-south-1**. State bucket: `inspect-lens-terraform-state-055255093542`.
+The stack is account-independent: account, region, state bucket and names come from per-account files in `infra/environments/dev/config/`. Setup for a new account (personal practice or company) is in [docs/aws-setup.md](docs/aws-setup.md).
 
 ## What this repo owns
 
@@ -10,7 +10,7 @@ Default region: **ap-south-1**. State bucket: `inspect-lens-terraform-state-0552
 | --- | --- |
 | S3 | Photos (presigned PUT/GET), quotation PDFs, inspection-report PDFs |
 | SES | Password reset, email verification, agreement PDF (`SendRawEmail`) |
-| IAM user | Static keys in `app.env` (the API does not use the instance role yet) |
+| IAM user | Static keys in `app.env` (the API does not use the instance role yet; the EC2 role already has the same scoped policy) |
 | ECR × 2 | `inspect-lens-be`, `inspect-image-analyzer` |
 | GitHub OIDC roles | CD build (ECR push) and deploy (SSM) |
 | VPC / RDS / EC2 / ALB | Optional; enable with feature flags when CD should go live |
@@ -22,27 +22,32 @@ Default region: **ap-south-1**. State bucket: `inspect-lens-terraform-state-0552
 
 ```
 infra/
-  modules/           # reusable resources
-  environments/dev/  # current stack (remote state key dev/terraform.tfstate)
+  bootstrap/                # once per account: creates the remote-state bucket (local state)
+  modules/                  # reusable resources
+  environments/dev/         # current stack (remote state key dev/terraform.tfstate)
+    config/                 # per-account backend-*.hcl and *.tfvars (copy the .example files)
+    tests/                  # terraform test with mocked providers (no AWS)
 ```
 
-Copy `environments/dev` to `environments/staging` or `prod` when you need a second stack. Change `backend.tf` `key` (for example `staging/terraform.tfstate`) and `environment` in tfvars.
+Copy `environments/dev` to `environments/staging` or `prod` when you need a second stack; see [infra/environments/README.md](infra/environments/README.md).
 
-## Quick start (existing S3 / IAM / SES)
+## Quick start (company account, existing S3 / IAM / SES)
 
 ```bash
 cd infra/environments/dev
-cp terraform.tfvars.example terraform.tfvars
-# edit bucket_name, cors_allowed_origins, ses_emails / ses_domain
+cp config/backend-company.hcl.example config/backend-company.hcl   # fill bucket / region
+cp config/company.tfvars.example config/company.tfvars             # fill account_id, region, bucket_name
 
 aws sts get-caller-identity
-terraform init
-terraform plan
-terraform apply
+terraform init -reconfigure -backend-config=config/backend-company.hcl
+terraform plan  -var-file=config/company.tfvars
+terraform apply -var-file=config/company.tfvars
 terraform output github_actions_handoff
 ```
 
-`terraform.tfvars` is gitignored.
+Real `config/*.hcl` and `*.tfvars` files are gitignored. `bucket_name` must be set explicitly for an existing bucket: left unset, the name is computed and Terraform would plan to replace the bucket.
+
+For a personal practice account, start with [docs/aws-setup.md](docs/aws-setup.md).
 
 If the app bucket already exists:
 
@@ -76,12 +81,17 @@ See [docs/DEVOPS.md](docs/DEVOPS.md) for the full handoff to `inspect-lens-be`.
 | `enable_rds` | false | PostgreSQL + `DATABASE_URL` secret |
 | `enable_compute` | false | EC2, instance profile, uploads EBS |
 | `enable_alb` | false | ALB + `/health` target group |
+| `enable_eip` | false | Elastic IP on the app instance |
+| `enable_public_http` | false | App port open to the internet over plain HTTP, no ALB (practice only) |
+| `allow_destroy` | false | Lets destroy remove non-empty S3/ECR; RDS without final snapshot or deletion protection |
 
 RDS and EC2 require `enable_network = true`.
 
+The EC2 instance ignores AMI and `user_data` changes after creation, so a new AMI or a `user_data` fix only reaches a new instance. Replace the instance on purpose to pick them up (`terraform apply -replace='module.compute[0].aws_instance.this'`).
+
 ## IAM note
 
-The previous example attached `AmazonS3FullAccess` and `AmazonSESFullAccess`. Those are **not** in `terraform.tfvars.example` anymore. The IAM module attaches a policy limited to `s3:...` on `orgs/*` and `ses:SendRawEmail` on verified identities. After apply, drop the managed FullAccess policies from the group if they are still attached from an older apply.
+The previous example attached `AmazonS3FullAccess` and `AmazonSESFullAccess`. Those are **not** in `config/company.tfvars.example` anymore. The IAM module attaches a policy limited to `s3:...` on `orgs/*` and `ses:SendRawEmail` on verified identities. After apply, drop the managed FullAccess policies from the group if they are still attached from an older apply.
 
 Access keys are **not** created in Terraform (they would land in state). Create them once in IAM and store them in `app.env` on the instance.
 
@@ -89,4 +99,14 @@ Access keys are **not** created in Terraform (they would land in state). Create 
 
 - Terraform >= 1.10 (S3 backend `use_lockfile`)
 - AWS provider ~> 5.0
-- Permission to manage S3, IAM, SES, ECR, VPC, RDS, EC2, SSM, Secrets Manager in account `055255093542`
+- Permission to manage S3, IAM, SES, ECR, VPC, RDS, EC2, SSM, Secrets Manager in the target account (`account_id` in tfvars; the provider refuses any other account)
+
+## Checks without AWS
+
+```bash
+terraform fmt -check -recursive infra
+cd infra/environments/dev && terraform init -backend=false && terraform validate && terraform test
+cd ../../bootstrap      && terraform init -backend=false && terraform validate && terraform test
+```
+
+`terraform test` plans against mocked providers, so it needs no credentials and makes no AWS calls.
