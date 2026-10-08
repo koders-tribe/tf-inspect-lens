@@ -15,6 +15,12 @@ variable "cors_allowed_origins" {
   default     = []
 }
 
+variable "force_destroy" {
+  description = "Let destroy delete the bucket with all objects and versions in it. Practice accounts only."
+  type        = bool
+  default     = false
+}
+
 variable "abort_incomplete_multipart_days" {
   description = "Abort incomplete multipart uploads after this many days."
   type        = number

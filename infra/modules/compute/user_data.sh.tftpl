@@ -1,0 +1,49 @@
+#!/bin/bash
+# Runs once, on first boot. aws_instance ignores user_data changes, so edits
+# here only reach new instances.
+set -euxo pipefail
+%{ if swap_gb > 0 ~}
+
+# Swap for small instances (t3.micro has 1 GiB RAM).
+if [ ! -f /swapfile ]; then
+  fallocate -l ${swap_gb}G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+fi
+swapon /swapfile || true
+grep -q '^/swapfile ' /etc/fstab || echo "/swapfile none swap sw 0 0" >> /etc/fstab
+%{ endif ~}
+
+dnf update -y
+# AWS CLI v2 is preinstalled on AL2023; the v1 "awscli" package is not needed.
+dnf install -y docker jq
+systemctl enable --now docker
+
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -fsSL "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-$(uname -m)" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+mkdir -p ${deploy_path} ${uploads_mount}
+%{ if uploads_volume_id != "" ~}
+
+# Uploads EBS volume. Nitro instances expose it as NVMe; the by-id path is
+# stable regardless of /dev/sdf vs /dev/nvme1n1 naming. The attachment is
+# created after the instance, so wait for the device.
+dev="/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_${replace(uploads_volume_id, "-", "")}"
+for _ in $(seq 1 120); do
+  [ -e "$dev" ] && break
+  sleep 5
+done
+[ -e "$dev" ]
+
+# Format only an empty volume, never one that already holds data.
+if ! blkid "$dev"; then
+  mkfs -t xfs "$dev"
+fi
+uuid="$(blkid -s UUID -o value "$dev")"
+grep -q "$uuid" /etc/fstab || echo "UUID=$uuid ${uploads_mount} xfs defaults,nofail 0 2" >> /etc/fstab
+mount -a
+%{ endif ~}
+
+echo "Host bootstrap complete. Copy inspect-lens-be/deploy/ec2 to ${deploy_path} and create app.env / analyzer.env."

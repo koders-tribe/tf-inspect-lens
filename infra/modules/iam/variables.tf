@@ -8,6 +8,12 @@ variable "iam_group_name" {
   type        = string
 }
 
+variable "create_user" {
+  description = "Create the app IAM user, group, membership and group policy attachments. False: only the app policy is created (attach it to a role)."
+  type        = bool
+  default     = true
+}
+
 variable "policy_arns" {
   description = "Optional extra managed/custom policy ARNs attached to the group. Prefer the module app policy over AmazonS3FullAccess / AmazonSESFullAccess."
   type        = list(string)
@@ -27,7 +33,7 @@ variable "ses_identity_arns" {
 }
 
 variable "attach_app_policy" {
-  description = "Create and attach a least-privilege S3 + SES policy for the app user."
+  description = "Create the least-privilege S3 + SES app policy (attached to the group when create_user is true)."
   type        = bool
   default     = true
 }

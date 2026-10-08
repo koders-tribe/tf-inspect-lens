@@ -27,6 +27,18 @@ variable "enable_vpc_endpoints" {
   default     = false
 }
 
+variable "app_port" {
+  description = "Host port of the API container (compose APP_HOST_PORT)."
+  type        = number
+  default     = 8001
+}
+
+variable "public_app_ingress_cidrs" {
+  description = "CIDRs allowed to reach app_port directly, bypassing the ALB. Empty (recommended) means ALB only."
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

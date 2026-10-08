@@ -1,0 +1,7 @@
+# cp terraform.tfvars.example terraform.tfvars   (gitignored)
+
+account_id = "<ACCOUNT_ID>"
+aws_region = "ap-southeast-2"
+
+# Only to adopt an existing state bucket under a different name.
+# state_bucket_name = ""

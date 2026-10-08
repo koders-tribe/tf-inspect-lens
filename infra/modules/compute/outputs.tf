@@ -8,7 +8,17 @@ output "instance_private_ip" {
 }
 
 output "instance_public_ip" {
-  value = aws_instance.this.public_ip
+  description = "Elastic IP when enable_eip, otherwise the auto-assigned IP (changes on stop/start)."
+  value       = local.public_ip
+}
+
+output "instance_role_name" {
+  value = aws_iam_role.instance.name
+}
+
+output "api_url" {
+  description = "Base URL of the API: the ALB when enabled, else http://<public ip>:<port> when public_http, else null."
+  value       = local.api_url
 }
 
 output "instance_profile_name" {

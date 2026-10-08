@@ -1,17 +1,32 @@
 ###############################################################################
-# AWS Region
+# Account / region (set per account in config/<name>.tfvars)
 ###############################################################################
 
-variable "aws_region" {
-  description = "AWS region (Inspect Lens default is ap-south-1)."
+variable "account_id" {
+  description = "AWS account this stack belongs to. The provider refuses any other account."
   type        = string
-  default     = "ap-south-1"
+
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.account_id))
+    error_message = "account_id must be a 12-digit AWS account ID."
+  }
+}
+
+variable "aws_region" {
+  description = "AWS region for every resource in this stack."
+  type        = string
 }
 
 variable "aws_profile" {
-  description = "AWS CLI profile. Leave as default if using env vars / SSO."
+  description = "AWS CLI profile. Leave null and use AWS_PROFILE or exported credentials (docs/aws-setup.md)."
   type        = string
-  default     = "default"
+  default     = null
+}
+
+variable "allow_destroy" {
+  description = "Practice accounts: let destroy remove non-empty S3/ECR and skip the RDS final snapshot and deletion protection."
+  type        = bool
+  default     = false
 }
 
 variable "project_name" {
@@ -75,6 +90,12 @@ variable "enable_alb" {
   default = false
 }
 
+variable "secret_recovery_window_days" {
+  description = "Secrets Manager recovery window. 0 lets destroy + re-apply reuse secret names (practice accounts)."
+  type        = number
+  default     = 30
+}
+
 variable "enable_secrets" {
   type    = bool
   default = true
@@ -85,8 +106,9 @@ variable "enable_secrets" {
 ###############################################################################
 
 variable "bucket_name" {
-  description = "App bucket for photos and PDFs. Import if it already exists."
+  description = "App bucket for photos and PDFs. Null means inspect-lens-<environment>-<account_id>-<aws_region>. Set it explicitly for an existing bucket: a different name replaces the bucket."
   type        = string
+  default     = null
 }
 
 variable "cors_allowed_origins" {
@@ -105,6 +127,12 @@ variable "iam_user_name" {
 
 variable "iam_group_name" {
   type = string
+}
+
+variable "create_app_iam_user" {
+  description = "Create the app IAM user and group (static keys in app.env). Set false where an SCP denies iam:CreateGroup (AWS free-plan accounts) or once the API uses the instance role; the scoped S3 + SES policy is still created and attached to the EC2 role."
+  type        = bool
+  default     = true
 }
 
 variable "policy_arns" {
@@ -135,6 +163,12 @@ variable "ses_route53_zone_id" {
   default     = ""
 }
 
+variable "ses_sender" {
+  description = "EMAIL_SENDER for app.env (a verified identity). Null means the first ses_emails entry."
+  type        = string
+  default     = null
+}
+
 ###############################################################################
 # Network / RDS / compute
 ###############################################################################
@@ -159,6 +193,17 @@ variable "db_username" {
   default = "inspect_lens"
 }
 
+variable "db_backup_retention_days" {
+  description = "RDS automated backup retention in days. AWS free-plan accounts reject 7 (FreeTierRestrictionError); use 1, or 0 to disable backups."
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.db_backup_retention_days >= 0 && var.db_backup_retention_days <= 35 && floor(var.db_backup_retention_days) == var.db_backup_retention_days
+    error_message = "db_backup_retention_days must be a whole number from 0 to 35."
+  }
+}
+
 variable "ec2_instance_type" {
   type    = string
   default = "t3.small"
@@ -172,6 +217,35 @@ variable "acm_certificate_arn" {
 variable "ec2_deploy_path" {
   type    = string
   default = "/opt/inspect-lens-be"
+}
+
+variable "ec2_root_volume_gb" {
+  type    = number
+  default = 40
+}
+
+variable "ec2_uploads_volume_gb" {
+  description = "Uploads EBS volume size. 0 skips the volume."
+  type        = number
+  default     = 20
+}
+
+variable "ec2_swap_gb" {
+  description = "Swap file created on first boot. Useful on t3.micro (1 GiB RAM)."
+  type        = number
+  default     = 0
+}
+
+variable "enable_eip" {
+  description = "Elastic IP for the app instance (stable address without an ALB)."
+  type        = bool
+  default     = false
+}
+
+variable "enable_public_http" {
+  description = "Practice only: open the app port to 0.0.0.0/0 over plain HTTP, bypassing the ALB."
+  type        = bool
+  default     = false
 }
 
 ###############################################################################
@@ -196,6 +270,12 @@ variable "ecr_repository_names" {
 variable "github_deploy_environments" {
   type    = list(string)
   default = ["staging", "production"]
+}
+
+variable "github_build_allowed_refs" {
+  description = "Refs that may assume the build role. inspect-lens-be cd.yml builds on tag pushes v*.*.* and workflow_dispatch; dispatch from other branches is denied."
+  type        = list(string)
+  default     = ["refs/heads/main", "refs/tags/v*"]
 }
 
 variable "tags" {

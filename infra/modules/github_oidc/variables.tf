@@ -31,10 +31,28 @@ variable "deploy_environments" {
   default     = ["staging", "production"]
 }
 
+variable "build_allowed_refs" {
+  description = "Git refs allowed to assume the build (ECR push) role. Default matches inspect-lens-be cd.yml: tag pushes v*.*.* and workflow_dispatch from main."
+  type        = list(string)
+  default     = ["refs/heads/main", "refs/tags/v*"]
+}
+
 variable "ec2_instance_arns" {
-  description = "Optional EC2 instance ARNs to scope ssm:SendCommand. Empty allows tagged instances via a wildcard (tighten later)."
+  description = "Optional EC2 instance ARNs to scope ssm:SendCommand. Empty means any instance in the account that carries the deploy target tag."
   type        = list(string)
   default     = []
+}
+
+variable "deploy_target_tag_key" {
+  description = "Tag key an instance must carry for the deploy role to run SendCommand on it."
+  type        = string
+  default     = "Name"
+}
+
+variable "deploy_target_tag_value" {
+  description = "Tag value for deploy_target_tag_key. Null means <name_prefix>-app, the Name the compute module sets."
+  type        = string
+  default     = null
 }
 
 variable "tags" {

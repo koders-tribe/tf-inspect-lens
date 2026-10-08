@@ -31,16 +31,21 @@ data "aws_iam_policy_document" "ecr_pull" {
     resources = ["*"]
   }
 
-  statement {
-    sid = "EcrPull"
-    actions = [
-      "ecr:BatchCheckLayerAvailability",
-      "ecr:GetDownloadUrlForLayer",
-      "ecr:BatchGetImage",
-      "ecr:DescribeRepositories",
-      "ecr:DescribeImages",
-    ]
-    resources = var.ecr_repository_arns
+  # An empty resources list is an invalid policy, so skip when ECR is off.
+  dynamic "statement" {
+    for_each = length(var.ecr_repository_arns) > 0 ? [1] : []
+
+    content {
+      sid = "EcrPull"
+      actions = [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+      ]
+      resources = var.ecr_repository_arns
+    }
   }
 }
 
@@ -48,6 +53,16 @@ resource "aws_iam_role_policy" "ecr_pull" {
   name   = "ecr-pull"
   role   = aws_iam_role.instance.id
   policy = data.aws_iam_policy_document.ecr_pull.json
+}
+
+# e.g. the app's scoped S3 + SES policy, so the API can use the instance role
+# instead of static keys. count, not for_each: the ARNs are unknown until apply
+# in a new account, but the list length is known.
+resource "aws_iam_role_policy_attachment" "extra" {
+  count = length(var.extra_policy_arns)
+
+  role       = aws_iam_role.instance.name
+  policy_arn = var.extra_policy_arns[count.index]
 }
 
 resource "aws_iam_instance_profile" "this" {
@@ -68,20 +83,26 @@ resource "aws_security_group_rule" "ssh" {
   description       = "Optional SSH; prefer SSM"
 }
 
+data "aws_subnet" "this" {
+  id = var.subnet_id
+}
+
 locals {
-  user_data = <<-EOT
-    #!/bin/bash
-    set -euxo pipefail
-    dnf update -y
-    dnf install -y docker jq awscli
-    systemctl enable --now docker
-    mkdir -p /usr/local/lib/docker/cli-plugins
-    curl -fsSL "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64" \
-      -o /usr/local/lib/docker/cli-plugins/docker-compose
-    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-    mkdir -p ${var.deploy_path} /opt/inspect-lens-uploads
-    echo "Host bootstrap complete. Copy inspect-lens-be/deploy/ec2 to ${var.deploy_path} and create app.env / analyzer.env."
-  EOT
+  uploads_enabled = var.uploads_volume_gb > 0
+
+  user_data = templatefile("${path.module}/user_data.sh.tftpl", {
+    deploy_path       = var.deploy_path
+    uploads_mount     = var.uploads_mount_path
+    uploads_volume_id = local.uploads_enabled ? aws_ebs_volume.uploads[0].id : ""
+    swap_gb           = var.swap_gb
+  })
+
+  public_ip = var.enable_eip ? aws_eip.this[0].public_ip : aws_instance.this.public_ip
+  api_url = (
+    var.enable_alb ? (var.acm_certificate_arn != "" ? "https://${aws_lb.this[0].dns_name}" : "http://${aws_lb.this[0].dns_name}") :
+    var.public_http ? "http://${local.public_ip}:${var.app_host_port}" :
+    null
+  )
 }
 
 resource "aws_instance" "this" {
@@ -109,10 +130,33 @@ resource "aws_instance" "this" {
     Name        = "${var.name_prefix}-app"
     Environment = lookup(var.tags, "Environment", var.name_prefix)
   })
+
+  # The AMI comes from the "latest AL2023" parameter; without this every new
+  # AMI release would replace the instance. user_data only runs on first boot.
+  # Replace the instance deliberately to pick up either change.
+  lifecycle {
+    ignore_changes = [ami, user_data]
+  }
 }
 
+# Stable public IP across stop/start (the auto-assigned one changes).
+resource "aws_eip" "this" {
+  count = var.enable_eip ? 1 : 0
+
+  domain   = "vpc"
+  instance = aws_instance.this.id
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-app"
+  })
+}
+
+# Created before the instance (in the subnet's AZ) so user_data can mount it by
+# volume ID.
 resource "aws_ebs_volume" "uploads" {
-  availability_zone = aws_instance.this.availability_zone
+  count = local.uploads_enabled ? 1 : 0
+
+  availability_zone = data.aws_subnet.this.availability_zone
   size              = var.uploads_volume_gb
   type              = "gp3"
   encrypted         = true
@@ -123,9 +167,21 @@ resource "aws_ebs_volume" "uploads" {
 }
 
 resource "aws_volume_attachment" "uploads" {
+  count = local.uploads_enabled ? 1 : 0
+
   device_name = "/dev/sdf"
-  volume_id   = aws_ebs_volume.uploads.id
+  volume_id   = aws_ebs_volume.uploads[0].id
   instance_id = aws_instance.this.id
+}
+
+moved {
+  from = aws_ebs_volume.uploads
+  to   = aws_ebs_volume.uploads[0]
+}
+
+moved {
+  from = aws_volume_attachment.uploads
+  to   = aws_volume_attachment.uploads[0]
 }
 
 resource "aws_lb" "this" {

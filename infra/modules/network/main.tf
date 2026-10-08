@@ -160,10 +160,24 @@ resource "aws_security_group" "app" {
 
   ingress {
     description     = "API from ALB"
-    from_port       = 8001
-    to_port         = 8001
+    from_port       = var.app_port
+    to_port         = var.app_port
     protocol        = "tcp"
     security_groups = [aws_security_group.alb.id]
+  }
+
+  # Inline (not aws_security_group_rule): this group manages its rules inline,
+  # and mixing both styles makes each apply remove the other's rules.
+  dynamic "ingress" {
+    for_each = length(var.public_app_ingress_cidrs) > 0 ? [1] : []
+
+    content {
+      description = "API direct, no ALB (practice only; plain HTTP)"
+      from_port   = var.app_port
+      to_port     = var.app_port
+      protocol    = "tcp"
+      cidr_blocks = var.public_app_ingress_cidrs
+    }
   }
 
   egress {

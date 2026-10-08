@@ -1,0 +1,91 @@
+# Personal practice account. Cheap settings; everything can be destroyed.
+# cp personal.tfvars.example personal.tfvars   (gitignored)
+# terraform plan -var-file=config/personal.tfvars
+# Auth: export AWS_PROFILE=inspect-personal (docs/aws-setup.md).
+
+###############################################################################
+# Account / region
+###############################################################################
+
+account_id = "<ACCOUNT_ID>"
+aws_region = "ap-southeast-2"
+
+# Lets destroy remove non-empty S3/ECR, skips the RDS final snapshot and
+# deletes secrets immediately so the same names can be re-created.
+allow_destroy               = true
+secret_recovery_window_days = 0
+
+###############################################################################
+# S3 — bucket_name unset: inspect-lens-dev-<account_id>-ap-southeast-2
+###############################################################################
+
+cors_allowed_origins = [
+  "http://localhost:3000",
+]
+
+###############################################################################
+# IAM / SES
+###############################################################################
+
+# AWS free-plan accounts sit in an AWS-managed organization whose SCP denies
+# iam:CreateGroup, so no app IAM user/group here. The scoped S3 + SES policy
+# (named <iam_user_name>-s3-ses) is still created and attached to the EC2
+# instance role. iam_group_name is unused while this is false.
+create_app_iam_user = false
+iam_user_name       = "inspect-lens-dev"
+iam_group_name      = "inspect-lens-s3-developers"
+policy_arns         = []
+
+# A new account is in the SES sandbox: verify sender AND recipient addresses.
+ses_emails = [
+  # "you@example.com",
+]
+
+###############################################################################
+# Feature flags
+###############################################################################
+
+enable_ecr     = true
+enable_secrets = true
+
+# Trusts koders-tribe/inspect-lens-be from this account; off unless you are
+# practising CD here.
+enable_github_oidc = false
+
+# Turn these on in order (docs/aws-setup.md). Roughly per month while running:
+# EC2 t3.micro ~$9 + public IPv4/EIP ~$3.60, RDS db.t4g.micro ~$13 + storage.
+# Destroy when not practising.
+enable_network = false
+enable_rds     = false
+enable_compute = false
+
+# Kept off on purpose: NAT ~$35/mo, ALB ~$18/mo, VPC endpoints ~$100/mo.
+enable_nat_gateway   = false
+enable_alb           = false
+enable_vpc_endpoints = false
+
+###############################################################################
+# Practice compute / database (used once the flags above are on)
+###############################################################################
+
+ec2_instance_type     = "t3.micro" # switch to t3.small if API + analyzer run out of memory
+ec2_swap_gb           = 2
+ec2_root_volume_gb    = 20
+ec2_uploads_volume_gb = 20
+
+# No ALB: reach the API at http://<EIP>:8001 (plain HTTP, open to the internet).
+enable_public_http = true
+enable_eip         = true
+
+db_instance_class = "db.t4g.micro" # single-AZ (rds multi_az defaults to false)
+
+# Free-plan accounts reject the default 7 days (FreeTierRestrictionError:
+# backup retention period exceeds the maximum available to free tier
+# customers). Use 0 (no automated backups) if 1 is also rejected.
+db_backup_retention_days = 1
+
+tags = {
+  Project     = "Inspect Lens"
+  Environment = "dev"
+  Owner       = "practice"
+}

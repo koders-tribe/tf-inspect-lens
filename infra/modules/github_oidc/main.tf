@@ -24,11 +24,15 @@ resource "aws_iam_openid_connect_provider" "github" {
 
 locals {
   oidc_provider_arn = var.create_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
-  repo_sub          = "repo:${var.github_org}/${var.github_repo}:*"
+  build_subs = [
+    for ref in var.build_allowed_refs :
+    "repo:${var.github_org}/${var.github_repo}:ref:${ref}"
+  ]
   deploy_subs = [
     for env in var.deploy_environments :
     "repo:${var.github_org}/${var.github_repo}:environment:${env}"
   ]
+  deploy_tag_value = coalesce(var.deploy_target_tag_value, "${var.name_prefix}-app")
 }
 
 data "aws_iam_policy_document" "build_trust" {
@@ -50,7 +54,7 @@ data "aws_iam_policy_document" "build_trust" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = [local.repo_sub]
+      values   = local.build_subs
     }
   }
 }
@@ -126,21 +130,37 @@ resource "aws_iam_role_policy" "build" {
 
 data "aws_iam_policy_document" "deploy" {
   statement {
-    sid    = "SsmRun"
+    sid       = "SsmSendCommandDocument"
+    effect    = "Allow"
+    actions   = ["ssm:SendCommand"]
+    resources = ["arn:aws:ssm:${data.aws_region.current.name}::document/AWS-RunShellScript"]
+  }
+
+  # SendCommand only reaches instances carrying the deploy target tag
+  # (cd.yml targets EC2_INSTANCE_IDS or tag Name=<prefix>-app).
+  statement {
+    sid       = "SsmSendCommandTaggedInstances"
+    effect    = "Allow"
+    actions   = ["ssm:SendCommand"]
+    resources = length(var.ec2_instance_arns) > 0 ? var.ec2_instance_arns : ["arn:aws:ec2:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:instance/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ssm:resourceTag/${var.deploy_target_tag_key}"
+      values   = [local.deploy_tag_value]
+    }
+  }
+
+  # Command status APIs do not support resource-level permissions.
+  statement {
+    sid    = "SsmCommandStatus"
     effect = "Allow"
     actions = [
-      "ssm:SendCommand",
       "ssm:ListCommands",
       "ssm:ListCommandInvocations",
       "ssm:GetCommandInvocation",
     ]
-    resources = concat(
-      [
-        "arn:aws:ssm:${data.aws_region.current.name}::document/AWS-RunShellScript",
-        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:*",
-      ],
-      length(var.ec2_instance_arns) > 0 ? var.ec2_instance_arns : ["arn:aws:ec2:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:instance/*"]
-    )
+    resources = ["*"]
   }
 
   statement {

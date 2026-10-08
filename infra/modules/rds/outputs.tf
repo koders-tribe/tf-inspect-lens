@@ -11,6 +11,11 @@ output "db_name" {
   value = aws_db_instance.this.db_name
 }
 
+output "backup_retention_period" {
+  description = "Automated backup retention in days."
+  value       = aws_db_instance.this.backup_retention_period
+}
+
 output "username" {
   value = aws_db_instance.this.username
 }

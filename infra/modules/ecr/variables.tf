@@ -9,6 +9,12 @@ variable "keep_image_count" {
   default     = 20
 }
 
+variable "force_delete" {
+  description = "Let destroy delete repositories that still contain images. Practice accounts only."
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

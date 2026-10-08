@@ -1,5 +1,7 @@
 locals {
   name_prefix = "inspect-lens-${var.environment}"
+  bucket_name = coalesce(var.bucket_name, "${local.name_prefix}-${var.account_id}-${var.aws_region}")
+  ses_sender  = var.ses_sender != null ? var.ses_sender : try(var.ses_emails[0], null)
   common_tags = merge(var.tags, {
     Project     = var.project_name
     Environment = var.environment
@@ -13,8 +15,9 @@ locals {
 module "s3_bucket" {
   source = "../../modules/s3_bucket"
 
-  bucket_name          = var.bucket_name
+  bucket_name          = local.bucket_name
   cors_allowed_origins = var.cors_allowed_origins
+  force_destroy        = var.allow_destroy
   tags                 = local.common_tags
 }
 
@@ -32,12 +35,14 @@ module "ses" {
 }
 
 ###############################################################################
-# IAM user for the running API (static keys). Do not generate keys in Terraform.
+# App S3 + SES policy, and optionally the IAM user for the running API (static
+# keys). Do not generate keys in Terraform.
 ###############################################################################
 
 module "iam" {
   source = "../../modules/iam"
 
+  create_user       = var.create_app_iam_user
   iam_user_name     = var.iam_user_name
   iam_group_name    = var.iam_group_name
   policy_arns       = var.policy_arns
@@ -60,6 +65,8 @@ module "network" {
   enable_nat_gateway   = var.enable_nat_gateway
   enable_vpc_endpoints = var.enable_vpc_endpoints
   tags                 = local.common_tags
+
+  public_app_ingress_cidrs = var.enable_public_http && var.enable_compute ? ["0.0.0.0/0"] : []
 }
 
 module "rds" {
@@ -73,6 +80,12 @@ module "rds" {
   db_name            = var.db_name
   username           = var.db_username
   tags               = local.common_tags
+
+  backup_retention_period = var.db_backup_retention_days
+
+  skip_final_snapshot         = var.allow_destroy
+  deletion_protection         = !var.allow_destroy
+  secret_recovery_window_days = var.secret_recovery_window_days
 }
 
 module "ecr" {
@@ -80,6 +93,7 @@ module "ecr" {
   source = "../../modules/ecr"
 
   repository_names = var.ecr_repository_names
+  force_delete     = var.allow_destroy
   tags             = local.common_tags
 }
 
@@ -93,6 +107,7 @@ module "github_oidc" {
   create_oidc_provider = var.create_github_oidc_provider
   ecr_repository_arns  = values(module.ecr[0].repository_arns)
   deploy_environments  = var.github_deploy_environments
+  build_allowed_refs   = var.github_build_allowed_refs
   tags                 = local.common_tags
 }
 
@@ -100,8 +115,9 @@ module "secrets" {
   count  = var.enable_secrets ? 1 : 0
   source = "../../modules/secrets"
 
-  name_prefix = local.name_prefix
-  tags        = local.common_tags
+  name_prefix             = local.name_prefix
+  recovery_window_in_days = var.secret_recovery_window_days
+  tags                    = local.common_tags
 }
 
 module "compute" {
@@ -120,4 +136,14 @@ module "compute" {
   acm_certificate_arn   = var.acm_certificate_arn
   public_subnet_ids     = module.network[0].public_subnet_ids
   tags                  = local.common_tags
+
+  root_volume_gb    = var.ec2_root_volume_gb
+  uploads_volume_gb = var.ec2_uploads_volume_gb
+  swap_gb           = var.ec2_swap_gb
+  enable_eip        = var.enable_eip
+  public_http       = var.enable_public_http
+
+  # Same scoped S3 + SES policy as the app IAM user, so the API can move from
+  # static keys to the instance role. The IAM user stays until it has.
+  extra_policy_arns = [module.iam.app_policy_arn]
 }

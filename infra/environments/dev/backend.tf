@@ -1,17 +1,8 @@
+# Partial backend: bucket, key, region, encrypt and use_lockfile come from a
+# per-account file, e.g.
+#   terraform init -backend-config=config/backend-personal.hcl
+# See config/*.hcl.example and docs/aws-setup.md.
+
 terraform {
-
-  backend "s3" {
-
-    bucket = "inspect-lens-terraform-state-055255093542"
-
-    key = "dev/terraform.tfstate"
-
-    region = "ap-south-1"
-
-    encrypt = true
-
-    use_lockfile = true
-
-  }
-
+  backend "s3" {}
 }
