@@ -13,12 +13,13 @@ output "bucket_region" {
 }
 
 output "iam_user_name" {
-  description = "Create an access key for this user in the IAM console. Set AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY in app.env. Never commit keys."
+  description = "Create an access key for this user in the IAM console. Set AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY in app.env. Never commit keys. Null when create_app_iam_user is false."
   value       = module.iam.iam_user_name
 }
 
 output "iam_group_name" {
-  value = module.iam.iam_group_name
+  description = "Null when create_app_iam_user is false."
+  value       = module.iam.iam_group_name
 }
 
 output "app_policy_arn" {

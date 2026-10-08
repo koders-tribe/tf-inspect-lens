@@ -84,6 +84,7 @@ See [docs/DEVOPS.md](docs/DEVOPS.md) for the full handoff to `inspect-lens-be`.
 | `enable_eip` | false | Elastic IP on the app instance |
 | `enable_public_http` | false | App port open to the internet over plain HTTP, no ALB (practice only) |
 | `allow_destroy` | false | Lets destroy remove non-empty S3/ECR; RDS without final snapshot or deletion protection |
+| `create_app_iam_user` | true | App IAM user + group for static keys. `false` (free-plan accounts): only the scoped policy, attached to the EC2 role |
 
 RDS and EC2 require `enable_network = true`.
 
@@ -94,6 +95,8 @@ The EC2 instance ignores AMI and `user_data` changes after creation, so a new AM
 The previous example attached `AmazonS3FullAccess` and `AmazonSESFullAccess`. Those are **not** in `config/company.tfvars.example` anymore. The IAM module attaches a policy limited to `s3:...` on `orgs/*` and `ses:SendRawEmail` on verified identities. After apply, drop the managed FullAccess policies from the group if they are still attached from an older apply.
 
 Access keys are **not** created in Terraform (they would land in state). Create them once in IAM and store them in `app.env` on the instance.
+
+The IAM user and group are optional (`create_app_iam_user`). AWS free-plan accounts deny `iam:CreateGroup` through an organization SCP, so the personal example turns them off. The scoped policy is still created and attached to the EC2 instance role. The API needs a change in `inspect-lens-be` to use that role instead of static keys; see Follow-ups in [docs/aws-setup.md](docs/aws-setup.md).
 
 ## Requirements
 

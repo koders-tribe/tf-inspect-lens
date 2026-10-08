@@ -35,9 +35,13 @@ cors_allowed_origins = [
 # Remove AmazonS3FullAccess / AmazonSESFullAccess; the module attaches a scoped policy.
 ###############################################################################
 
-iam_user_name  = "inspect-lens-dev"
-iam_group_name = "inspect-lens-s3-developers"
-policy_arns    = []
+# Set false once inspect-lens-be uses the instance role (default credential
+# chain). Delete the user's access keys first: IAM will not delete a user
+# that still has keys.
+create_app_iam_user = true
+iam_user_name       = "inspect-lens-dev"
+iam_group_name      = "inspect-lens-s3-developers"
+policy_arns         = []
 
 ###############################################################################
 # SES — verify mailboxes and/or a domain. Request production access in SES console.

@@ -129,6 +129,12 @@ variable "iam_group_name" {
   type = string
 }
 
+variable "create_app_iam_user" {
+  description = "Create the app IAM user and group (static keys in app.env). Set false where an SCP denies iam:CreateGroup (AWS free-plan accounts) or once the API uses the instance role; the scoped S3 + SES policy is still created and attached to the EC2 role."
+  type        = bool
+  default     = true
+}
+
 variable "policy_arns" {
   description = "Extra policies on the app IAM group. Leave empty; the module attaches a scoped S3+SES policy."
   type        = list(string)

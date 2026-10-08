@@ -27,9 +27,14 @@ cors_allowed_origins = [
 # IAM / SES
 ###############################################################################
 
-iam_user_name  = "inspect-lens-dev"
-iam_group_name = "inspect-lens-s3-developers"
-policy_arns    = []
+# AWS free-plan accounts sit in an AWS-managed organization whose SCP denies
+# iam:CreateGroup, so no app IAM user/group here. The scoped S3 + SES policy
+# (named <iam_user_name>-s3-ses) is still created and attached to the EC2
+# instance role. iam_group_name is unused while this is false.
+create_app_iam_user = false
+iam_user_name       = "inspect-lens-dev"
+iam_group_name      = "inspect-lens-s3-developers"
+policy_arns         = []
 
 # A new account is in the SES sandbox: verify sender AND recipient addresses.
 ses_emails = [

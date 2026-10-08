@@ -35,12 +35,14 @@ module "ses" {
 }
 
 ###############################################################################
-# IAM user for the running API (static keys). Do not generate keys in Terraform.
+# App S3 + SES policy, and optionally the IAM user for the running API (static
+# keys). Do not generate keys in Terraform.
 ###############################################################################
 
 module "iam" {
   source = "../../modules/iam"
 
+  create_user       = var.create_app_iam_user
   iam_user_name     = var.iam_user_name
   iam_group_name    = var.iam_group_name
   policy_arns       = var.policy_arns

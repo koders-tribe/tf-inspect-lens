@@ -17,6 +17,14 @@ mock_provider "aws" {
       names = ["zone-a", "zone-b", "zone-c"]
     }
   }
+
+  # Policy attachments validate the ARN format; a random mock value fails on
+  # apply. This makes the ARN constant across runs.
+  mock_resource "aws_iam_policy" {
+    defaults = {
+      arn = "arn:aws:iam::111111111111:policy/mock-app-policy"
+    }
+  }
 }
 
 mock_provider "random" {}
@@ -34,6 +42,24 @@ run "defaults" {
   assert {
     condition     = local.bucket_name == "inspect-lens-dev-111111111111-ap-southeast-2"
     error_message = "bucket name should be computed from environment, account and region"
+  }
+
+  assert {
+    condition     = output.iam_user_name == "inspect-lens-test" && output.iam_group_name == "inspect-lens-test"
+    error_message = "create_app_iam_user defaults to true: the app IAM user and group must be planned"
+  }
+}
+
+run "no_app_iam_user" {
+  command = plan
+
+  variables {
+    create_app_iam_user = false
+  }
+
+  assert {
+    condition     = output.iam_user_name == null && output.iam_group_name == null
+    error_message = "create_app_iam_user = false must not plan an IAM user or group"
   }
 }
 
@@ -108,6 +134,7 @@ run "practice_mode" {
   variables {
     allow_destroy               = true
     secret_recovery_window_days = 0
+    create_app_iam_user         = false
     enable_github_oidc          = false
     enable_network              = true
     enable_rds                  = true
@@ -124,6 +151,11 @@ run "practice_mode" {
   assert {
     condition     = output.ses_sender == "me@example.com"
     error_message = "ses_sender should default to the first ses_emails entry"
+  }
+
+  assert {
+    condition     = output.iam_user_name == null
+    error_message = "practice mode has no app IAM user"
   }
 
   assert {
@@ -145,5 +177,67 @@ run "no_uploads_volume" {
   assert {
     condition     = output.ses_sender == "noreply@example.com"
     error_message = "explicit ses_sender should win"
+  }
+}
+
+# Mocked apply -> apply with create_app_iam_user switched from true to false,
+# sharing state (the practice-account path). Mocked IDs/ARNs are random per
+# create, so equal values prove those resources were not recreated. Mocks do
+# not apply AWS "forces replacement" rules; this covers address/count changes.
+run "apply_with_user" {
+  command = apply
+
+  variables {
+    enable_network = true
+    enable_compute = true
+    ses_emails     = ["me@example.com", "ops@example.com"]
+  }
+
+  assert {
+    condition     = output.iam_user_name == "inspect-lens-test" && output.app_policy_arn != null
+    error_message = "user and app policy should exist"
+  }
+}
+
+run "apply_without_user" {
+  command = apply
+
+  variables {
+    create_app_iam_user = false
+    enable_network      = true
+    enable_compute      = true
+    ses_emails          = ["me@example.com", "ops@example.com"]
+  }
+
+  assert {
+    condition     = output.iam_user_name == null && output.iam_group_name == null
+    error_message = "IAM user and group should be gone"
+  }
+
+  # The mocked policy ARN is fixed, so this only shows the policy still exists;
+  # its address (aws_iam_policy.app[0]) and name are unchanged by the flag.
+  assert {
+    condition     = output.app_policy_arn == run.apply_with_user.app_policy_arn
+    error_message = "the app policy must be kept"
+  }
+
+  assert {
+    condition     = output.bucket_arn == run.apply_with_user.bucket_arn
+    error_message = "the S3 bucket must not be recreated"
+  }
+
+  assert {
+    condition     = output.ecr_repository_urls == run.apply_with_user.ecr_repository_urls
+    error_message = "ECR repositories must not be recreated"
+  }
+
+  assert {
+    condition     = output.ses_email_identity_arns == run.apply_with_user.ses_email_identity_arns
+    error_message = "SES identities must not be recreated"
+  }
+
+  assert {
+    condition     = output.ec2_instance_id == run.apply_with_user.ec2_instance_id
+    error_message = "the EC2 instance must not be recreated"
   }
 }

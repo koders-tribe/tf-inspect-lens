@@ -68,7 +68,7 @@ Create both. Production: required reviewers; deploy branches tags `v*` and `main
 APP_ENV=prod
 DATABASE_URL=   # from secret app_env.DATABASE_URL_SECRET_NAME (inspect-lens-<env>/database-url)
 JWT_SECRET_KEY=
-AWS_ACCESS_KEY_ID=       # IAM user keys; the instance role has the same policy once the API supports it
+AWS_ACCESS_KEY_ID=       # IAM user keys, only with create_app_iam_user = true; the instance role has the same policy
 AWS_SECRET_ACCESS_KEY=
 S3_BUCKET=      # app_env.S3_BUCKET
 S3_REGION=      # app_env.S3_REGION
