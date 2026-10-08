@@ -79,6 +79,11 @@ enable_eip         = true
 
 db_instance_class = "db.t4g.micro" # single-AZ (rds multi_az defaults to false)
 
+# Free-plan accounts reject the default 7 days (FreeTierRestrictionError:
+# backup retention period exceeds the maximum available to free tier
+# customers). Use 0 (no automated backups) if 1 is also rejected.
+db_backup_retention_days = 1
+
 tags = {
   Project     = "Inspect Lens"
   Environment = "dev"

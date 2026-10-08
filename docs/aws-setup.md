@@ -153,6 +153,18 @@ If the SCP also denies `iam:DeleteUser`, that destroy fails. Drop the user from 
 terraform state rm 'module.iam.aws_iam_user.this[0]'
 ```
 
+### RDS backup retention is capped
+
+Free-plan accounts also limit RDS. Creating the DB with the default 7-day backup retention fails:
+
+```
+FreeTierRestrictionError: The specified backup retention period exceeds the maximum available to free tier customers.
+```
+
+`personal.tfvars.example` sets `db_backup_retention_days = 1`. Use `0` (no automated backups) if 1 is also rejected. The default stays 7 for the company account.
+
+If the failed apply already created the random password, the `database-url` secret and the DB subnet group, they stay in state. The next plan should only **add** the DB instance and the secret version: 2 to add, 0 to change, 0 to destroy.
+
 ## 4. Switching to the company account
 
 1. Switch credentials and check the account:
@@ -196,6 +208,7 @@ terraform state rm 'module.iam.aws_iam_user.this[0]'
 | `BucketAlreadyExists` | S3 bucket names are global; set `bucket_name` explicitly. |
 | `not authorized to perform: iam:CreateGroup ... explicit deny in a service control policy` | Free-plan SCP. Set `create_app_iam_user = false` (see Free-plan accounts). |
 | `not authorized to perform: iam:DeleteUser ... service control policy` | Free-plan SCP on the user's destroy. Run `terraform state rm 'module.iam.aws_iam_user.this[0]'`. |
+| `FreeTierRestrictionError: The specified backup retention period exceeds the maximum available to free tier customers` | Free-plan RDS limit. Set `db_backup_retention_days = 1`, or `0` if 1 is also rejected. |
 | `not authorized to perform: iam:PassRole` when creating the EC2 instance | Free-plan SCP may deny PassRole (untested). Compute cannot launch with an instance profile in that account. |
 
 ## Follow-ups

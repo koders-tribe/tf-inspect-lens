@@ -81,6 +81,8 @@ module "rds" {
   username           = var.db_username
   tags               = local.common_tags
 
+  backup_retention_period = var.db_backup_retention_days
+
   skip_final_snapshot         = var.allow_destroy
   deletion_protection         = !var.allow_destroy
   secret_recovery_window_days = var.secret_recovery_window_days

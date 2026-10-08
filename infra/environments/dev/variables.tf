@@ -193,6 +193,17 @@ variable "db_username" {
   default = "inspect_lens"
 }
 
+variable "db_backup_retention_days" {
+  description = "RDS automated backup retention in days. AWS free-plan accounts reject 7 (FreeTierRestrictionError); use 1, or 0 to disable backups."
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.db_backup_retention_days >= 0 && var.db_backup_retention_days <= 35 && floor(var.db_backup_retention_days) == var.db_backup_retention_days
+    error_message = "db_backup_retention_days must be a whole number from 0 to 35."
+  }
+}
+
 variable "ec2_instance_type" {
   type    = string
   default = "t3.small"

@@ -50,6 +50,45 @@ run "defaults" {
   }
 }
 
+run "rds_backup_retention_default" {
+  command = plan
+
+  variables {
+    enable_network = true
+    enable_rds     = true
+  }
+
+  assert {
+    condition     = module.rds[0].backup_retention_period == 7
+    error_message = "default RDS backup retention must stay 7 days (company behaviour)"
+  }
+}
+
+run "rds_backup_retention_free_plan" {
+  command = plan
+
+  variables {
+    enable_network           = true
+    enable_rds               = true
+    db_backup_retention_days = 1
+  }
+
+  assert {
+    condition     = module.rds[0].backup_retention_period == 1
+    error_message = "db_backup_retention_days must reach the RDS instance"
+  }
+}
+
+run "rds_backup_retention_rejects_out_of_range" {
+  command = plan
+
+  variables {
+    db_backup_retention_days = 36
+  }
+
+  expect_failures = [var.db_backup_retention_days]
+}
+
 run "no_app_iam_user" {
   command = plan
 
@@ -145,7 +184,13 @@ run "practice_mode" {
     ec2_swap_gb                 = 2
     ec2_root_volume_gb          = 20
     ec2_uploads_volume_gb       = 20
+    db_backup_retention_days    = 1
     ses_emails                  = ["me@example.com"]
+  }
+
+  assert {
+    condition     = module.rds[0].backup_retention_period == 1
+    error_message = "practice mode uses 1-day RDS backups (free-plan limit)"
   }
 
   assert {
